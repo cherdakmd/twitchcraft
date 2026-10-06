@@ -1,0 +1,44 @@
+# Автосборка TwitchCraft на GitHub Actions: при каждом пуше в main (и по тегу v*) собирается jar
+# и прогоняются автотесты из dev-tests. Готовый jar лежит в «Artifacts» внизу страницы запуска.
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Исходники
+        uses: actions/checkout@v4
+
+      - name: JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Сборка (./gradlew build)
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+      - name: Автотесты (LogicTest + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
+        run: |
+          python3 -m pip install --quiet websockets || python3 -m pip install --quiet --break-system-packages websockets
+          sh dev-tests/run_tests.sh
+
+      - name: Jar как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: twitchcraft-${{ github.sha }}
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+          if-no-files-found: error

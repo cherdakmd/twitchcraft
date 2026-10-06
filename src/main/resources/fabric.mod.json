@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "twitchcraft",
+	"version": "${version}",
+	"name": "TwitchCraft",
+	"description": "Интеграция Twitch и VK Video Live с Minecraft: баллы канала, подписки, биты, фолловы, рейды, чат и донаты (DonationAlerts, DonatePay) запускают события в игре.",
+	"authors": [
+		"dedworkshop"
+	],
+	"contact": {
+		"homepage": "https://twitch.tv/dedworkshop"
+	},
+	"license": "MIT",
+	"icon": "assets/twitchcraft/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.dedworkshop.twitchcraft.TwitchCraftClient"
+		],
+		"modmenu": [
+			"dev.dedworkshop.twitchcraft.ui.config.ModMenuIntegration"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.twitch": "https://twitch.tv/dedworkshop"
+			}
+		}
+	}
+}

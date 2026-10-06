@@ -1,0 +1,11 @@
+# Единые переводы строк: в репозитории всегда LF, кроме .bat (Windows ждёт CRLF)
+*           text=auto eol=lf
+*.bat       text eol=crlf
+*.sh        text eol=lf
+gradlew     text eol=lf
+
+# Бинарные файлы
+*.jar       binary
+*.png       binary
+*.ogg       binary
+*.jpg       binary

@@ -1,0 +1,9 @@
+{
+  "key.category.twitchcraft.main": "TwitchCraft",
+  "key.categories.twitchcraft.main": "TwitchCraft",
+  "key.twitchcraft.pause": "Пауза / продолжить события Twitch",
+  "key.twitchcraft.overlay": "Показать / скрыть оверлей Twitch",
+  "key.twitchcraft.replay": "Повторить последнее событие Twitch",
+  "modmenu.twitch": "Канал Twitch",
+  "key.twitchcraft.clip": "Сделать клип стрима Twitch (F10)"
+}

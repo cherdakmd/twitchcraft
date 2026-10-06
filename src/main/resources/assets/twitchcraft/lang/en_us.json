@@ -1,0 +1,9 @@
+{
+  "key.category.twitchcraft.main": "TwitchCraft",
+  "key.categories.twitchcraft.main": "TwitchCraft",
+  "key.twitchcraft.pause": "Pause / resume Twitch events",
+  "key.twitchcraft.overlay": "Toggle Twitch overlay",
+  "key.twitchcraft.replay": "Replay last Twitch event",
+  "modmenu.twitch": "Twitch channel",
+  "key.twitchcraft.clip": "Create a Twitch clip (F10)"
+}

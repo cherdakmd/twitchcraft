@@ -1,0 +1,13 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+// Должно совпадать с id мода в fabric.mod.json
+rootProject.name = 'twitchcraft'
