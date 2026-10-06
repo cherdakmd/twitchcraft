@@ -553,8 +553,10 @@ Minecraft 26.3 / Fabric API 0.161.0 — **ни одного устаревшег
   два файла состояния/настроек в `config/` (атомарная запись через `SafeFiles`, повреждённый файл → `.broken`).
 - **Сборка без новых модулей Gradle**: аддон живёт в `sourceSets.artifactAddon` (`src/artifactAddon/{java,resources}`),
   компилируется против `sourceSets.main.output` и упаковывается задачей `artifactAddonJar` в `artifact-addon-1.0.0.jar`.
-  Так как аддон — отдельный мод, его jar **обязан** быть remap: используется `net.fabricmc.loom.task.RemapJarTask`
-  (named → intermediary), а промежуточный сырой jar кладётся в `build/libs/raw` и не попадает в артефакты CI.
+  Ремап не нужен: Loom (`MinecraftMetadataProvider.isUnobfuscated`) считает Minecraft новее 1.21.11 необфусцированным
+  (у такой версии нет `client_mappings`), поэтому мод и аддон собираются в именах, понятных игре как есть.
+  Попытка прогонять аддон через `RemapJarTask` в такой среде падает (`Cannot configure known indyBsms in a non-obfuscated
+  environment`) — проверено в CI; если проект вернётся к обфусцированной версии игры, remap для аддона понадобится.
 - **Идентификация предмета без миксинов и NBT**: артефакт помечается меткой `⟦tc:<id>⟧` в `custom_name`, аддон читает её
   из `ItemStack.getHoverName()` — это позволяет работать на любом сервере и не требует доступа к компонентам предмета.
 - **Удаление предмета**: сначала `item replace entity @s <слот> with air` (точный слот из сканирования инвентаря),

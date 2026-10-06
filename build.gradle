@@ -74,34 +74,18 @@ tasks.named('processArtifactAddonResources', ProcessResources).configure {
 	}
 }
 
-// Сначала обычный jar из классов аддона, затем remap: имена Minecraft внутри аддона
-// переводятся из именованных (как при компиляции) в intermediary — иначе в игре
-// аддон не найдёт классы. Именно поэтому используется RemapJarTask из Loom.
-tasks.register('artifactAddonRawJar', Jar) {
-	group = 'build'
-	description = 'Промежуточный (не remap) jar аддона «Артефакты»'
-	archiveBaseName.set('artifact-addon')
-	archiveVersion.set(addonVersion)
-	archiveClassifier.set('raw')
-	destinationDirectory.set(layout.buildDirectory.dir('libs/raw'))
-	from sourceSets.artifactAddon.output
-	dependsOn tasks.named('artifactAddonClasses')
-}
-
-tasks.register('artifactAddonJar', net.fabricmc.loom.task.RemapJarTask) {
+// Отдельный jar аддона. Ремап не нужен: Loom считает Minecraft новее 1.21.11
+// необфусцированным (MinecraftMetadataProvider.isUnobfuscated — у версии нет client_mappings),
+// поэтому и мод, и аддон собираются в именах, которые игра понимает как есть.
+// Если сборка когда-нибудь вернётся к обфусцированной версии игры, аддон придётся
+// прогонять через net.fabricmc.loom.task.RemapJarTask — см. AUDIT.md.
+tasks.register('artifactAddonJar', Jar) {
 	group = 'build'
 	description = 'Собирает аддон «Артефакты» в отдельный jar'
-	dependsOn tasks.named('artifactAddonRawJar')
 	archiveBaseName.set('artifact-addon')
 	archiveVersion.set(addonVersion)
-	archiveClassifier.set('')
-	inputFile.set(tasks.named('artifactAddonRawJar').flatMap { it.archiveFile })
-	classpath.setFrom(sourceSets.artifactAddon.compileClasspath)
-	addNestedDependencies.set(false)
-	// Loom не умеет сериализовать состояние этой задачи в configuration cache,
-	// поэтому для сборок с аддоном Gradle просто не сохраняет кэш конфигурации
-	// (обычная сборка мода кэш по-прежнему использует).
-	notCompatibleWithConfigurationCache('Loom RemapJarTask для отдельного jar аддона')
+	from sourceSets.artifactAddon.output
+	dependsOn tasks.named('artifactAddonClasses')
 }
 
 tasks.named('build') {

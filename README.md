@@ -422,9 +422,9 @@ TwitchCraft 1.8.0 принимает **аддоны**: это отдельные
 - файлы: `config/twitchcraft-artifacts.json` (настройки с подсказками и нормализацией значений) и
   `config/twitchcraft-artifacts-state.json` (артефакты и статистика; запись атомарная, повреждённый файл уходит в `.broken`).
 
-Сборка аддона — та же команда, что и у мода: `./gradlew build`. Рядом с модом появится `build/libs/artifact-addon-1.0.0.jar`
-(он проходит remap через Loom — без этого игра не поняла бы имена Minecraft). Отдельные модули Gradle не нужны: и мод, и аддон
-собираются одним `build.gradle`.
+Сборка аддона — та же команда, что и у мода: `./gradlew build`. Рядом с модом появится `build/libs/artifact-addon-1.0.0.jar`.
+Отдельные модули Gradle не нужны: и мод, и аддон собираются одним `build.gradle` (для Minecraft 26.3 ремап не требуется —
+Loom считает такие версии необфусцированными).
 
 **Для разработчиков аддонов.** Интерфейс — `dev.dedworkshop.twitchcraft.api.TwitchCraftAddon` (версия API 1):
 `id/title/version`, `onReady(AddonContext)`, `onEvent(TwitchEvent)`, `onTick(Minecraft)`, `onConfigChanged()`, `onShutdown()`.
