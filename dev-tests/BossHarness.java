@@ -1,5 +1,7 @@
 package dev.dedworkshop.twitchcraft.artifacts;
 
+import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
