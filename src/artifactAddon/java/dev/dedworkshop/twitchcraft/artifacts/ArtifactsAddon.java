@@ -320,14 +320,14 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 						.message("§dПроверка аддона «Артефакты»§r: в запасе §f{artifact_count}§r, выбито §f{artifact_total}§r, "
 								+ "разрушено §f{artifact_destroyed}§r, последний — §f{artifact_last}§r.")
 						.build());
-		context.registerCustomTrigger(2, "Босс появился", "Мировое событие: босс вышел в мир",
-				AddonTrigger.game(TwitchEvent.GAME_BOSS),
+		context.registerCustomTrigger(2, "Босс появился", "Мировое событие: босс аддона вышел в мир",
+				AddonTrigger.game(TwitchEvent.GAME_BOSS_SPAWN),
 				AddonElements.builder()
 						.message("§d§l⚡ Мировое событие!§r §fБосс §d{boss_name}§f вышел на охоту — координаты в чате!")
 						.sound("minecraft:entity.ender_dragon.growl", 1.0f, 1.0f)
 						.build());
 		context.registerCustomTrigger(3, "Босс повержен", "Зрителям — итог сражения и статистика",
-				AddonTrigger.game(TwitchEvent.GAME_BOSS),
+				AddonTrigger.game(TwitchEvent.GAME_BOSS_DEFEAT),
 				AddonElements.builder()
 						.message("§a☠ Сражение окончено!§f Побед над боссами: §f{boss_defeats}§f, "
 								+ "следующий босс §f{boss_next}§f. Артефактов выбито: §f{artifact_total}§f.")

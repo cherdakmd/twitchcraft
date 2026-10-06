@@ -1082,6 +1082,8 @@ public final class TwitchCommands {
 			case "goal", "цель" -> TwitchEvent.GAME_ADVANCEMENT_GOAL;
 			case "challenge", "испытание" -> TwitchEvent.GAME_ADVANCEMENT_CHALLENGE;
 			case "boss", "босс" -> TwitchEvent.GAME_BOSS;
+			case "bossspawn", "spawn", "босспоявился" -> TwitchEvent.GAME_BOSS_SPAWN;
+			case "bossdefeat", "defeat", "боссповержен" -> TwitchEvent.GAME_BOSS_DEFEAT;
 			case "dimension", "измерение", "nether", "end" -> TwitchEvent.GAME_DIMENSION;
 			default -> TwitchEvent.GAME_DEATH;
 		};

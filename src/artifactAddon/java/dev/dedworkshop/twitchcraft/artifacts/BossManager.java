@@ -87,6 +87,8 @@ public final class BossManager {
 				"killer", killer.isBlank() ? texts.noKiller : killer,
 				"player", killer.isBlank() ? "" : killer));
 		announce(text);
+		publish(hookEvent(TwitchEvent.GAME_BOSS_DEFEAT, killer.isBlank() ? bossName : killer, bossName,
+				killer.isBlank() ? "" : killer, store.bossDefeats));
 
 		// Артефакт за победу — с шансом из настроек (в серверном аддоне 50 %)
 		int chance = config == null || config.bosses == null ? 50 : config.bosses.artifactChancePercent;
@@ -315,6 +317,9 @@ public final class BossManager {
 				"health", String.valueOf((long) boss.health()),
 				"skills", String.valueOf(boss.skills().size())));
 		announce(text);
+		// Событие в конвейер мода: действия из конфига и кастомные триггеры аддонов
+		publish(hookEvent(TwitchEvent.GAME_BOSS_SPAWN, boss.name(), boss.title(),
+				"X " + (long) x + " Z " + (long) z, store.bossSpawned));
 		log().info("Боссы: «{}» появился (X {} Y {} Z {}), навыков {}", boss.name(), (long) x, (long) y, (long) z,
 				boss.skills().size());
 	}
@@ -498,7 +503,21 @@ public final class BossManager {
 
 	/** Событие для хуков аддона: «босс появился» / «босс повержен» (тестовое, чтобы не звать API Twitch). */
 	public TwitchEvent hookEvent(String kind, String bossName) {
-		return TwitchEvent.game(kind, bossName, bossName, "", 1, true);
+		return hookEvent(kind, bossName, bossName, "", 1);
+	}
+
+	/** Событие для конвейера мода: игрок — {@code who}, текст — {@code text}, дополнение — {@code extra}. */
+	public TwitchEvent hookEvent(String kind, String who, String text, String extra, int amount) {
+		return TwitchEvent.game(kind, who, text, extra, amount, true);
+	}
+
+	/** Отправить событие в TwitchCraft (действия из конфига, хуки аддонов, журнал). */
+	private void publish(TwitchEvent event) {
+		try {
+			addon.context().publish(event);
+		} catch (Exception e) {
+			log().warn("Боссы: не удалось опубликовать событие {}", event == null ? "?" : event.gameKind(), e);
+		}
 	}
 
 	private ArtifactStore store() {

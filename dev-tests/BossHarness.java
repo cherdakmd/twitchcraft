@@ -200,6 +200,31 @@ public class BossHarness {
 		check("неизвестный босс не ломает навык", !BossManager.skillCommands("LIGHTNING", "нет", 0, 0, 0, "Steve", 1, 2, 3,
 				new Random(1)).isEmpty());
 
+		// ---------- События для конвейера мода ----------
+		section("События боссов (публикация в TwitchCraft)");
+		BossManager manager = new BossManager(null);
+		check("новый вид: босс появился", TwitchEvent.GAME_BOSS_SPAWN.equals("bossSpawn")
+				&& TwitchEvent.GAME_BOSS_DEFEAT.equals("bossDefeat"));
+		TwitchEvent spawnEvent = manager.hookEvent(TwitchEvent.GAME_BOSS_SPAWN, "Кровавый Палач", "Кровавый Палач",
+				"X 120 Z -340", 3);
+		check("появление: вид и игрок", spawnEvent.type() == TwitchEvent.Type.GAME
+				&& TwitchEvent.GAME_BOSS_SPAWN.equals(spawnEvent.gameKind())
+				&& !spawnEvent.user().isBlank());
+		check("появление: имя босса и координаты", spawnEvent.message().equals("Кровавый Палач")
+				&& spawnEvent.tier().equals("X 120 Z -340"));
+		check("появление: текст для чата", spawnEvent.describe().contains("босс появился")
+				&& spawnEvent.describe().contains("Кровавый Палач"));
+		check("появление: счётчик вызовов", spawnEvent.amount() == 3);
+		TwitchEvent defeatEvent = manager.hookEvent(TwitchEvent.GAME_BOSS_DEFEAT, "Steve", "Кровавый Палач", "Steve", 2);
+		check("победа: кто победил и кого", defeatEvent.user().equals("Steve") && defeatEvent.message().equals("Кровавый Палач"));
+		check("победа: текст и пометка синтетики", defeatEvent.describe().contains("босс аддона повержен")
+				&& defeatEvent.tier().equals("Steve") && defeatEvent.synthetic());
+		check("старая форма hookEvent продолжает работать", manager.hookEvent(TwitchEvent.GAME_BOSS, "Тест")
+				.message().equals("Тест"));
+		check("событие игры, а не площадки", spawnEvent.isGame() && !spawnEvent.isVk());
+		check("плейсхолдеры события: {boss}, {killer}, {game_kind}", spawnEvent.message().equals("Кровавый Палач")
+				&& defeatEvent.tier().equals("Steve") && !spawnEvent.gameKind().isBlank());
+
 		// ---------- Состояние ----------
 		section("Состояние (ArtifactStore)");
 		ArtifactStore store = new ArtifactStore();

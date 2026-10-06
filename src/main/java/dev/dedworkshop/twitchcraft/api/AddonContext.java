@@ -106,6 +106,28 @@ public final class AddonContext {
 		announce(text, true, true);
 	}
 
+	/**
+	 * Отправить игровое событие в конвейер TwitchCraft: действия из конфига, хуки аддонов, журнал.
+	 *
+	 * <p>Аддон пользуется этим, когда его механика — тоже игровое событие: например, босс вышел в мир
+	 * ({@link TwitchEvent#GAME_BOSS_SPAWN}) или повержен ({@link TwitchEvent#GAME_BOSS_DEFEAT}).
+	 * Событие помечается синтетическим (без обращений к API площадок).</p>
+	 *
+	 * @return {@code true}, если событие принято
+	 */
+	public boolean publish(TwitchEvent event) {
+		if (event == null) {
+			return false;
+		}
+		try {
+			mod.onTwitchEvent(event);
+			return true;
+		} catch (Exception e) {
+			logger().error("Аддон {}: не удалось опубликовать событие {}", addonId, event.shortText(), e);
+			return false;
+		}
+	}
+
 	public void announce(String text, boolean toTwitch, boolean toVk) {
 		mod.announce(text, toTwitch, toVk, false);
 	}

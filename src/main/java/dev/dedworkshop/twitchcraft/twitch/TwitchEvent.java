@@ -121,12 +121,16 @@ public record TwitchEvent(
 	public static final String GAME_ADVANCEMENT_GOAL = "advancementGoal";
 	public static final String GAME_ADVANCEMENT_CHALLENGE = "advancementChallenge";
 	public static final String GAME_BOSS = "boss";
+	/** Босс аддона вышел в мир (публикует аддон, см. {@code AddonContext.publish}). */
+	public static final String GAME_BOSS_SPAWN = "bossSpawn";
+	/** Босс аддона повержен. */
+	public static final String GAME_BOSS_DEFEAT = "bossDefeat";
 	public static final String GAME_DIMENSION = "dimension";
 
 	/**
 	 * Событие игры.
 	 *
-	 * @param kind   вид: GAME_DEATH, GAME_ADVANCEMENT..., GAME_BOSS, GAME_DIMENSION
+	 * @param kind   вид: GAME_DEATH, GAME_ADVANCEMENT..., GAME_BOSS, GAME_BOSS_SPAWN, GAME_BOSS_DEFEAT, GAME_DIMENSION
 	 * @param player имя игрока
 	 * @param text   основной текст (причина смерти / название достижения / имя босса / название измерения)
 	 * @param extra  дополнение (описание достижения / убийца / id измерения)
@@ -453,6 +457,8 @@ public record TwitchEvent(
 				case GAME_ADVANCEMENT_GOAL -> "цель «" + message + "»" + suffix(tier);
 				case GAME_ADVANCEMENT_CHALLENGE -> "испытание «" + message + "»" + suffix(tier);
 				case GAME_BOSS -> "§6босс повержен: " + message + "§r" + (tier.isBlank() ? "" : " (" + tier + ")");
+				case GAME_BOSS_SPAWN -> "§6босс появился: " + message + "§r" + (tier.isBlank() ? "" : " (" + tier + ")");
+				case GAME_BOSS_DEFEAT -> "§6босс аддона повержен: " + message + "§r" + suffix(tier);
 				case GAME_DIMENSION -> "переход в " + message;
 				default -> reward + suffix(message);
 			};
@@ -510,6 +516,8 @@ public record TwitchEvent(
 			case GAME -> "игра · " + switch (reward) {
 				case GAME_DEATH -> "смерть №" + amount;
 				case GAME_BOSS -> "босс " + message;
+				case GAME_BOSS_SPAWN -> "босс появился · " + message;
+				case GAME_BOSS_DEFEAT -> "босс повержен · " + message;
 				case GAME_DIMENSION -> message;
 				default -> message;
 			};
