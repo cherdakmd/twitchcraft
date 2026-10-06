@@ -101,6 +101,7 @@ public final class TwitchCommands {
 										.then(literal("on").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), true)))
 										.then(literal("off").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), false)))
 										.then(literal("toggle").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), null)))))
+						.then(literal("addons").executes(ctx -> addons()))
 
 						// Цели
 						.then(literal("goals")
@@ -558,6 +559,21 @@ public final class TwitchCommands {
 
 	// ---------- Модули ----------
 
+	/** Список подключённых аддонов (отдельные моды вроде «Артефактов»). */
+	private static int addons() {
+		java.util.List<String> ids = dev.dedworkshop.twitchcraft.api.AddonManager.loadedIds();
+		if (ids.isEmpty()) {
+			Chat.info("Аддоны не подключены. Аддон — отдельный мод-файл, который ставится рядом с TwitchCraft "
+					+ "(например §eartifact-addon§7 — артефакты с проклятиями).");
+			return 1;
+		}
+		Chat.info("§5§lАддоны TwitchCraft §7(" + ids.size() + ")");
+		for (String id : ids) {
+			Chat.info("  §a● §f" + id);
+		}
+		return 1;
+	}
+
 	private static int modules(TwitchCraftClient mod) {
 		Chat.info("§5§lМодули §7(клик — переключить; также /twitch config)");
 		Module.Kind kind = null;
@@ -819,6 +835,7 @@ public final class TwitchCommands {
 		source.sendFeedback(Component.literal(""));
 		source.sendFeedback(Component.literal("§e/twitch config§7 — экран настроек (модули, награды, события, цели)"));
 		source.sendFeedback(Component.literal("§e/twitch modules§7 — список модулей, §e/twitch module <id> on|off§7 — включить/выключить"));
+		source.sendFeedback(Component.literal("§e/twitch addons§7 — подключённые аддоны (отдельные мод-файлы, например «Артефакты»)"));
 		source.sendFeedback(Component.literal("§e/twitch goals§7 — прогресс целей, §e/twitch goals reset§7 — сбросить"));
 		source.sendFeedback(Component.literal("§e/twitch fund§7 — сборы средств (боссбар): §efund create <имя> <цель>§7, §efund add <имя> <сумма>§7, §efund reset"));
 		source.sendFeedback(Component.literal("§e/twitch status§7 — состояние подключения и прав"));

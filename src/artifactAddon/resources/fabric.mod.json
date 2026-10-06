@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "twitchcraft-artifacts",
+	"version": "${version}",
+	"name": "TwitchCraft: Артефакты",
+	"description": "Аддон TwitchCraft: артефакты с проклятиями. Зрители выбивают артефакты за битсы, донаты, подписки, подарки, рейды и награды за баллы канала; проклятие артефакта растёт, пока он лежит в инвентаре, и на 100 % артефакт рассыпается навсегда. Механики перенесены с сервера CHRDK REBORN (VKChat Artifacts).",
+	"authors": [
+		"dedworkshop"
+	],
+	"contact": {
+		"homepage": "https://twitch.tv/dedworkshop"
+	},
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"twitchcraft-addon": [
+			"dev.dedworkshop.twitchcraft.artifacts.ArtifactsAddon"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*",
+		"twitchcraft": ">=1.8.0"
+	}
+}

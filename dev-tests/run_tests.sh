@@ -2,7 +2,9 @@
 # Запуск автотестов (нужны JDK 25 и собранный проект: ./gradlew build).
 # 1) Логические тесты (339): события, конфиг и миграция, плейсхолдеры, кулдауны, повторы, модули, лут, цели, сборы средств, очередь действий, события игры, таймеры чата, клипы,
 #    донаты, ценник донатов, случайные награды «Пакость»/«Подарок», разбор событий VK Video Live.
-# 2) Интеграционные тесты (34) против фейкового Twitch (python3 + pip install websockets): EventSub, Helix, метки и клипы.
+# 2) Логические тесты аддона «Артефакты» (ArtifactsHarness): редкости, каталог (56 баффов, 13 проклятий, 35 именных артефактов),
+#    рост проклятия и разрушение на 100 %, лимит артефактов, выдача за битсы/донаты/подписки/рейды/награды/боссов, команды give/эффектов/удаления.
+# 3) Интеграционные тесты (34) против фейкового Twitch (python3 + pip install websockets): EventSub, Helix, метки и клипы.
 # 3) Интеграционные тесты (58) против фейковых DonationAlerts / DonatePay (OAuth URL/invalid_client, продление токенов Centrifugo, unsub и догонка донатов).
 # 4) Интеграционные тесты (36) против фейкового VK Video Live (OAuth code, DevAPI, Centrifugo v2: вход, события, награды, чат, 401→refresh, обрыв и догонка).
 set -e
@@ -13,11 +15,17 @@ SLF4J=$(find "$GRADLE_HOME/caches/modules-2" -name "slf4j-api-*.jar" | grep -v s
 MC=$(find "$GRADLE_HOME/caches/fabric-loom/minecraftMaven" -name "minecraft-merged-deobf-26.3.jar" | head -1)
 JARS=$(find "$GRADLE_HOME/caches/modules-2" -name "*.jar" | grep -v -- "-sources" | tr '\n' ':')
 CLASSES=../build/classes/java/main
+# Классы аддона «Артефакты» (собираются в отдельный jar из src/artifactAddon)
+CLASSES_ADDON=../build/classes/java/artifactAddon
 
 mkdir -p out
 echo "== LogicTest =="
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java LogicTest.java
 java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$MC:$JARS" LogicTest
+
+echo "== ArtifactsHarness (аддон «Артефакты»: редкости, проклятия, выдача) =="
+javac -encoding UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" -d out ArtifactsHarness.java
+java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" ArtifactsHarness
 
 echo "== EventSubHarness (фейковый Twitch на 127.0.0.1:8080/8081, ~80 секунд) =="
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java

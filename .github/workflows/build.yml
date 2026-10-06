@@ -1,5 +1,9 @@
-# Автосборка TwitchCraft на GitHub Actions: при каждом пуше в main (и по тегу v*) собирается jar
-# и прогоняются автотесты из dev-tests. Готовый jar лежит в «Artifacts» внизу страницы запуска.
+# Автосборка TwitchCraft на GitHub Actions: при каждом пуше в main (и по тегу v*) собирается мод
+# и прогоняются автотесты из dev-tests. Готовые jar (мод + аддон «Артефакты») лежат в «Artifacts»
+# внизу страницы запуска.
+#
+# Для pull request дополнительно обновляется один комментарий с отчётом сборки: если сборка
+# или тесты упали — в комментарии видно текст ошибки (логи самих запусков скачать не всегда удобно).
 name: build
 
 on:
@@ -8,6 +12,10 @@ on:
     tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   build:
@@ -25,16 +33,21 @@ jobs:
           cache: gradle
 
       - name: Сборка (./gradlew build)
+        id: build
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew build --no-daemon
+          ./gradlew build --no-daemon 2>&1 | tee "$RUNNER_TEMP/build.log"
 
-      - name: Автотесты (LogicTest + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
+      - name: Автотесты (LogicTest + аддон «Артефакты» + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
+        id: tests
         run: |
+          set -o pipefail
           python3 -m pip install --quiet websockets || python3 -m pip install --quiet --break-system-packages websockets
-          sh dev-tests/run_tests.sh
+          sh dev-tests/run_tests.sh 2>&1 | tee "$RUNNER_TEMP/tests.log"
 
       - name: Jar как артефакт
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: twitchcraft-${{ github.sha }}
@@ -42,3 +55,107 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
           if-no-files-found: error
+
+      # Отчёт в PR: тот же комментарий обновляется при каждом запуске (без спама).
+      - name: Отчёт в pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+          BUILD_LOG: ${{ runner.temp }}/build.log
+          TESTS_LOG: ${{ runner.temp }}/tests.log
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          if [ -z "$PR" ]; then
+            echo "Это не pull request — отчёт в комментарии не нужен."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import os
+          import re
+          import pathlib
+
+          build_outcome = os.environ.get("BUILD_OUTCOME", "skipped")
+          tests_outcome = os.environ.get("TESTS_OUTCOME", "skipped")
+          sha = (os.environ.get("HEAD_SHA") or "")[:7]
+
+          def read_tail(path, limit=200):
+              try:
+                  lines = pathlib.Path(path).read_text(errors="replace").splitlines()
+              except OSError:
+                  return []
+              return lines[-limit:]
+
+          interesting = re.compile(
+              r"(error:|error\b|ошибка|FAILED|FAILURE|Caused by|Execution failed|BUILD FAILED|"
+              r"^\s+\^|What went wrong|Exception|AssertionError|FAIL |FAILURES:|ALL .*PASSED|== )",
+              re.IGNORECASE)
+
+          def excerpt(path, name, tail_lines=25):
+              tail = read_tail(path)
+              picked = [line for line in tail if interesting.search(line)]
+              if not picked:
+                  picked = tail[-tail_lines:]
+              return picked[-120:]
+
+          build_lines = excerpt(os.environ.get("BUILD_LOG", ""), "сборка")
+          test_lines = excerpt(os.environ.get("TESTS_LOG", ""), "тесты")
+
+          def icon(outcome):
+              return "✅" if outcome == "success" else ("⚠️" if outcome == "skipped" else "❌")
+
+          parts = []
+          parts.append("<!-- tc-ci-report -->")
+          parts.append(f"### {icon(build_outcome)} Сборка и тесты TwitchCraft")
+          parts.append("")
+          parts.append(f"Коммит `{sha}`")
+          parts.append("")
+          parts.append(f"- {icon(build_outcome)} сборка (`./gradlew build`: мод + аддон «Артефакты»): **{build_outcome}**")
+          parts.append(f"- {icon(tests_outcome)} автотесты (LogicTest + ArtifactsHarness + фейковые Twitch / DonationAlerts / DonatePay / VK): **{tests_outcome}**")
+          parts.append("")
+
+          if build_outcome != "success" and build_lines:
+              parts.append("<details open><summary>Сборка: последние строки с ошибками</summary>")
+              parts.append("")
+              parts.append("```")
+              parts.extend(build_lines)
+              parts.append("```")
+              parts.append("</details>")
+              parts.append("")
+
+          if tests_outcome != "success" and test_lines:
+              parts.append("<details open><summary>Тесты: последние строки с ошибками</summary>")
+              parts.append("")
+              parts.append("```")
+              parts.extend(test_lines)
+              parts.append("```")
+              parts.append("</details>")
+              parts.append("")
+
+          if build_outcome == "success" and tests_outcome == "success":
+              passed = [line for line in read_tail(os.environ.get("TESTS_LOG", ""), 400) if "PASSED" in line or line.startswith("==")]
+              if passed:
+                  parts.append("<details><summary>Итоги тестов</summary>")
+                  parts.append("")
+                  parts.append("```")
+                  parts.extend(passed[-30:])
+                  parts.append("```")
+                  parts.append("</details>")
+
+          body = "\n".join(parts)[:60000]
+          pathlib.Path("/tmp/tc-ci-report.md").write_text(body)
+          print(body[:2000])
+          PY
+          COMMENT_ID=$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq '.[] | select(.body | contains("<!-- tc-ci-report -->")) | .id' | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$COMMENT_ID" -F body=@/tmp/tc-ci-report.md >/dev/null
+            echo "Отчёт обновлён (комментарий $COMMENT_ID)."
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@/tmp/tc-ci-report.md >/dev/null
+            echo "Отчёт добавлен в PR."
+          fi
