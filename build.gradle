@@ -53,6 +53,9 @@ java {
 //  В игре аддон можно ставить отдельно от TwitchCraft: он подключается сам,
 //  если TwitchCraft установлен, и объявлен как его зависимость.
 // ---------------------------------------------------------------------------
+// Версию аддона читаем один раз, на этапе настройки (так безопасно и для configuration cache).
+def addonVersion = project.addon_version
+
 sourceSets {
 	artifactAddon {
 		java.srcDirs = ['src/artifactAddon/java']
@@ -63,9 +66,11 @@ sourceSets {
 }
 
 tasks.named('processArtifactAddonResources', ProcessResources).configure {
-	inputs.property "version", project.addon_version
+	// Внутри filesMatching { } нельзя обращаться к project.*: это выполняется при запуске
+	// задачи, а configuration cache такое запрещает. Версия взята выше, на этапе настройки.
+	inputs.property "version", addonVersion
 	filesMatching('fabric.mod.json') {
-		expand "version": project.addon_version
+		expand "version": addonVersion
 	}
 }
 
@@ -76,7 +81,7 @@ tasks.register('artifactAddonRawJar', Jar) {
 	group = 'build'
 	description = 'Промежуточный (не remap) jar аддона «Артефакты»'
 	archiveBaseName.set('artifact-addon')
-	archiveVersion.set(project.addon_version)
+	archiveVersion.set(addonVersion)
 	archiveClassifier.set('raw')
 	destinationDirectory.set(layout.buildDirectory.dir('libs/raw'))
 	from sourceSets.artifactAddon.output
@@ -88,7 +93,7 @@ tasks.register('artifactAddonJar', net.fabricmc.loom.task.RemapJarTask) {
 	description = 'Собирает аддон «Артефакты» в отдельный jar'
 	dependsOn tasks.named('artifactAddonRawJar')
 	archiveBaseName.set('artifact-addon')
-	archiveVersion.set(project.addon_version)
+	archiveVersion.set(addonVersion)
 	archiveClassifier.set('')
 	inputFile.set(tasks.named('artifactAddonRawJar').flatMap { it.archiveFile })
 	classpath.setFrom(sourceSets.artifactAddon.compileClasspath)
