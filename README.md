@@ -34,7 +34,7 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - `twitchcraft-1.7.0.jar` — скачай со страницы **[Releases](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+   - `twitchcraft-1.7.2.jar` — скачай со страницы **[Releases](https://github.com/cherdakmd/twitchcraft/releases/latest)**
      (тот же файл лежит в папке `release/` репозитория)
 4. **По желанию** — [Mod Menu](https://modrinth.com/mod/modmenu/versions?g=26.3) (файл `modmenu-21.0.0.jar`) в ту же папку:
    тогда в главном меню появится кнопка **Моды**, а у TwitchCraft — кнопка **Настроить** с полным редактором.
@@ -725,7 +725,7 @@ gradlew.bat build
 ./gradlew build
 ```
 
-Готовый мод появится в `build/libs/twitchcraft-1.7.0.jar`.
+Готовый мод появится в `build/libs/twitchcraft-1.7.2.jar`.
 Первая сборка качает Minecraft и зависимости (~600 МБ) — это нормально.
 
 **IntelliJ IDEA** (Community бесплатна): *File → Open* → папка проекта → дождаться синхронизации Gradle.

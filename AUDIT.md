@@ -534,7 +534,7 @@ Minecraft 26.3 / Fabric API 0.161.0 — **ни одного устаревшег
 
 ---
 
-# Исправление после 1.7.0: награда молча не выдавалась, если хоть одна команда действия падала
+# Изменения 1.7.0 → 1.7.2: награда молча не выдавалась, если хоть одна команда действия падала
 
 Дата: 2026-10-06. Повод: жалоба пользователя — «после фоллова подарок не выдался (ожидалось золотое яблоко), и наковальня за баллы канала тоже не появилась».
 
@@ -593,7 +593,7 @@ Minecraft 26.3 / Fabric API 0.161.0 — **ни одного устаревшег
 
 ## Тесты
 
-- `LogicTest`: **345** (+6) — регрессии на описанное поведение:
+- `LogicTest`: **345** (+6): регрессии на описанное поведение.
   `throwing command: the rest of the action still runs`, `…: loot is still issued`,
   `…: reward confirmed once (onDone), queue empty`, `…: player is warned in chat`,
   `loot effects failed: main commands ran`, `…: loot still given, onDone once, queue empty`.
