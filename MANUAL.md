@@ -98,10 +98,11 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    нажми *Install*. В лаунчере появится профиль **fabric-loader-26.3**.
 2. **Fabric API** для 26.3 — файл `fabric-api-0.161.0+26.3.jar` (или новее для 26.3):
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>.
-3. **TwitchCraft** — файл [`twitchcraft-1.8.0.jar`](release/twitchcraft-1.8.0.jar) из папки `release/` репозитория
-   (для версий, которых там ещё нет, — собери сам: `./gradlew build`, готовые файлы появятся в `build/libs`).
+3. **TwitchCraft** — файл **[`twitchcraft-1.8.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+   из вложения релиза на GitHub (в `release/` репозитория лежат jar 1.7.0 и 1.7.1; если нужной версии во вложениях нет —
+   собери сам: `./gradlew build`, готовые файлы появятся в `build/libs`).
    Страница опубликованных версий: <https://github.com/cherdakmd/twitchcraft/releases>.
-3а. **Аддон «Артефакты»** (по желанию) — `artifact-addon-1.0.0.jar` из той же папки `release/` или из `build/libs`.
+3а. **Аддон «Артефакты»** (по желанию) — `artifact-addon-1.0.0.jar` из вложения того же релиза или из `build/libs`.
    Это отдельный мод-файл: положи его в ту же папку `mods`. Без него TwitchCraft работает как обычно
    (просто не будет артефактов; `/twitch addons` скажет «аддоны не подключены»). Подробно — раздел 22в.
 4. **Mod Menu** (по желанию, но очень удобно) — `modmenu-21.0.0.jar`:

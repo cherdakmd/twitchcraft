@@ -34,7 +34,10 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - [`twitchcraft-1.8.0.jar`](release/twitchcraft-1.8.0.jar) — готовый JAR из папки `release/`; опубликованные версии — на странице **[Releases](https://github.com/cherdakmd/twitchcraft/releases)**
+   - **[`twitchcraft-1.8.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)** — готовый JAR из GitHub Releases
+     (там же лежит необязательный `artifact-addon-1.0.0.jar` — аддон «Артефакты»); все опубликованные версии —
+     на странице **[Releases](https://github.com/cherdakmd/twitchcraft/releases)**. В папке `release/` репозитория
+     лежат jar версий 1.7.0 и 1.7.1 и `ЦЕННИК.md` — текст для панели под стримом.
 4. **По желанию** — [Mod Menu](https://modrinth.com/mod/modmenu/versions?g=26.3) (файл `modmenu-21.0.0.jar`) в ту же папку:
    тогда в главном меню появится кнопка **Моды**, а у TwitchCraft — кнопка **Настроить** с полным редактором.
    Без Mod Menu тот же экран открывается командой `/twitch config` из любого мира.
