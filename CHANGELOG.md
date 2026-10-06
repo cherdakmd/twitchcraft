@@ -2,7 +2,7 @@
 
 Подробные отчёты о каждой версии (что проверялось, какие ошибки найдены и исправлены) — в [`AUDIT.md`](AUDIT.md).
 
-## 1.8.0 (в работе)
+## 1.8.0 · 7 октября 2026
 - **API аддонов (версия 1)**: отдельный мод объявляет точку входа Fabric `twitchcraft-addon` и реализует `TwitchCraftAddon`
   (`onReady`, `onEvent`, `onTick`, `onConfigChanged`, `onShutdown`). TwitchCraft находит аддоны сам, каждый вызов защищён try/catch —
   падение аддона не ломает мод и игру. Просмотр: `/twitch addons`; добавлен `MANUAL`-раздел в README (5е).
