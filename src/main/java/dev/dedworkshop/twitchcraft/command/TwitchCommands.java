@@ -655,6 +655,10 @@ public final class TwitchCommands {
 			return 0;
 		}
 		int fired = 0;
+		// Ручной запуск триггера: переменные аддона берём «на событие» — значение с событием должно
+		// перекрывать то же имя без события (globalPlaceholders уже содержит глобальные значения).
+		// На обычных событиях за это отвечает EventProcessor: там аддон занимает только свободные
+		// имена через AddonRegistry.applyVariables.
 		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>(mod.globalPlaceholders());
 		vars.putAll(dev.dedworkshop.twitchcraft.api.AddonRegistry.variables(event));
 		for (var elements : trigger.actions()) {

@@ -278,8 +278,9 @@ public class EventProcessor {
 
 		String playerName = mc.player != null ? mc.player.getName().getString() : "";
 		Map<String, String> vars = Placeholders.forPending(event, playerName, stats);
-		// Хук 1: переменные аддонов. Идут первыми, чтобы переменные самого мода имели приоритет.
-		vars.putAll(AddonRegistry.variables(event));
+		// Хук 1: переменные аддонов — только для свободных имён, чтобы аддон не мог перехватить
+		// {user}, {amount} или {deaths} и молча сломать все тексты и команды мода.
+		AddonRegistry.applyVariables(vars, event);
 		if (funds != null) {
 			vars.putAll(funds.placeholders()); // {fund} {fund_current} {fund_target} {fund_percent} {fund_left} {fund_currency}
 		}

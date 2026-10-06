@@ -227,6 +227,47 @@ public class BossHarness {
 		check("плейсхолдеры события: {boss}, {killer}, {game_kind}", spawnEvent.message().equals("Кровавый Палач")
 				&& defeatEvent.tier().equals("Steve") && !spawnEvent.gameKind().isBlank());
 
+		// ---------- Расписание и «вечный» бой ----------
+		section("Расписание: следующий вызов и лимит боя");
+		long now = 1_000_000L;
+		check("следующая попытка — через интервал", BossManager.nextAttemptAt(now, 3600) == now + 3_600_000L);
+		check("интервал короче минуты не ускоряет боссов", BossManager.nextAttemptAt(now, 5) == now + 60_000L);
+		check("бой в пределах лимита ещё идёт", !BossManager.expired(now, now + 60_000L, 900));
+		check("время ожидания победы истекло", BossManager.expired(now, now + 900_000L, 900));
+		check("побег до лимита не засчитывается как истёкший", !BossManager.expired(now, now + 899_999L, 900));
+		check("лимит 0 — запись не снимать никогда", !BossManager.expired(now, now + 10_000_000L, 0));
+		check("босс без отметки времени не «истекает»", !BossManager.expired(0, now, 900));
+
+		ArtifactConfig fightConfig = ArtifactConfig.defaults();
+		fightConfig.bosses.maxAliveSeconds = -5;
+		fightConfig.normalize();
+		check("отрицательный лимит боя -> 0", fightConfig.bosses.maxAliveSeconds == 0);
+		fightConfig.bosses.maxAliveSeconds = 999_999_999L;
+		fightConfig.normalize();
+		check("гигантский лимит боя ограничен сутками", fightConfig.bosses.maxAliveSeconds == 24 * 3600L);
+
+		ArtifactConfig messyConfig = ArtifactConfig.defaults();
+		java.util.List<String> messy = new java.util.ArrayList<>();
+		messy.add("slime_king");
+		messy.add("   ");
+		messy.add(null);
+		messy.add("  phantom_dragon  ");
+		messyConfig.bosses.disabled = messy;
+		messyConfig.normalize();
+		check("пустые id в disabled убираются, остальные нормализуются",
+				messyConfig.bosses.disabled.size() == 2
+						&& "slime_king".equals(messyConfig.bosses.disabled.get(0))
+						&& "phantom_dragon".equals(messyConfig.bosses.disabled.get(1)));
+		check("случайный босс не падает на disabled с null и пустой строкой",
+				BossCatalog.random(new Random(3), java.util.Arrays.asList("slime_king", null, "")) != null);
+
+		java.util.List<String> allOff = new java.util.ArrayList<>();
+		for (BossCatalog.Boss boss : BossCatalog.BOSSES) {
+			allOff.add(boss.id());
+		}
+		check("все боссы выключены — случайный равен null (расписание уходит в следующий интервал)",
+				BossCatalog.random(new Random(1), allOff) == null);
+
 		// ---------- Состояние ----------
 		section("Состояние (ArtifactStore)");
 		ArtifactStore store = new ArtifactStore();

@@ -348,6 +348,45 @@ public class ArtifactsHarness {
 		store.advanceCurse(hour * 24, storeConfig);
 		check("хрупкий артефакт (FRAGILE) рассыпается через сутки ношения", dropped.destroyed);
 
+		// ---------------- «Выгоревшие» артефакты ----------------
+		System.out.println("== «Выгоревший» артефакт: запись освобождает лимит ==");
+		ArtifactStore burntStore = ArtifactStore.load(dir.resolve("burnt.json"));
+		Artifact burnt = new Artifact();
+		burnt.id = "b0rn";
+		burnt.name = "Неубираемый";
+		burnt.rarity = ArtifactRarity.COMMON.id;
+		burnt.buff = "SPEED";
+		burnt.curse = "GREED";
+		burnt.present = true;
+		burnt.inactive = true; // предмет не удалось убрать командами — артефакт «выгорел»
+		burntStore.add(burnt, random);
+		check("выгоревший артефакт занимает лимит, пока предмет в инвентаре",
+				burntStore.activeCount() == 1 && burntStore.forgetBurntWithoutItem() == 0
+						&& burntStore.activeCount() == 1);
+		burnt.present = false; // игрок выбросил предмет руками
+		check("запись выгоревшего артефакта без предмета убирается",
+				burntStore.forgetBurntWithoutItem() == 1 && burntStore.activeCount() == 0
+						&& burntStore.byId("b0rn") == null);
+		check("статистика выбитого сохраняется, даже когда запись убрана",
+				burntStore.generated == 1 && burntStore.byRarity.get("common") == 1);
+		Artifact broken = new Artifact();
+		broken.id = "c0rr";
+		broken.rarity = ArtifactRarity.COMMON.id;
+		broken.curse = "GREED";
+		broken.destroyed = true; // рассыпался от проклятия — запись остаётся для истории
+		broken.present = false;
+		burntStore.add(broken, random);
+		check("разрушенный проклятием артефакт не удаляется из записей",
+				burntStore.forgetBurntWithoutItem() == 0 && burntStore.byId("c0rr") != null);
+		Artifact held = new Artifact();
+		held.id = "h3ld";
+		held.rarity = ArtifactRarity.RARE.id;
+		held.curse = "GREED";
+		held.present = false;
+		burntStore.add(held, random);
+		check("обычный артефакт без предмета остаётся (мог лежать в сундуке)",
+				burntStore.forgetBurntWithoutItem() == 0 && burntStore.byId("h3ld") != null);
+
 		// ---------------- Лимит и сохранение ----------------
 		System.out.println("== Лимит, статистика, сохранение ==");
 		ArtifactConfig limitConfig = config();

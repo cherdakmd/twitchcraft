@@ -144,6 +144,13 @@ public final class ArtifactConfig {
 		public boolean bossBar = true;
 		/** Шанс артефакта за победу над боссом, проценты. */
 		public int artifactChancePercent = 50;
+		/**
+		 * Сколько секунд босс может «висеть» вызванным без засчитанной победы, после чего запись
+		 * о нём снимается и расписание продолжается. Нужно для игры на чужих серверах: смерть
+		 * сущности видна только во встроенном сервере, поэтому без лимита один неотслеженный
+		 * босс навсегда занял бы единственное «место босса». 0 — не снимать (ждать победы).
+		 */
+		public long maxAliveSeconds = 1800;
 		/** Идентификаторы боссов, которых не нужно вызывать (например, ["slime_king"]). */
 		public List<String> disabled = new ArrayList<>();
 		/** Шаблон вызова босса: {type} {name} {x} {y} {z} {health} {damage} {speed}. */
@@ -258,7 +265,20 @@ public final class ArtifactConfig {
 		bosses.skillCooldownSeconds = clamp(bosses.skillCooldownSeconds, 1, 600);
 		bosses.skillRange = clamp(bosses.skillRange, 4, 256);
 		bosses.artifactChancePercent = clamp(bosses.artifactChancePercent, 0, 100);
-		if (bosses.disabled == null) bosses.disabled = new ArrayList<>();
+		bosses.maxAliveSeconds = (long) clamp(bosses.maxAliveSeconds, 0, 24 * 3600L);
+		if (bosses.disabled == null) {
+			bosses.disabled = new ArrayList<>();
+		} else {
+			// id из конфига могут быть пустыми или null — их сравнивает BossCatalog.random().
+			// Список пересобираем: присланный тестами изменять нельзя.
+			List<String> kept = new ArrayList<>();
+			for (String id : bosses.disabled) {
+				if (id != null && !id.isBlank()) {
+					kept.add(id.trim());
+				}
+			}
+			bosses.disabled = kept;
+		}
 		if (bosses.attributes == null) bosses.attributes = new Bosses.Attributes();
 		if (bosses.texts == null) bosses.texts = new Bosses.Texts();
 		if (bosses.summonCommand == null || bosses.summonCommand.isBlank()) {

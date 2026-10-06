@@ -205,6 +205,29 @@ public final class ArtifactStore {
 		artifacts.remove(artifact);
 	}
 
+	/**
+	 * Убрать записи «выгоревших» артефактов, предмета которых в инвентаре уже нет.
+	 *
+	 * <p>«Выгоревший» ({@code inactive}) — это артефакт, который мод не смог вынуть из инвентаря
+	 * (например, чужой сервер без прав OP). Он больше не действует, но его запись продолжала
+	 * занимать место в лимите {@code maxArtifacts} и навсегда оставалась в файле состояния.
+	 * Как только игрок выбросил предмет — запись больше не нужна.</p>
+	 *
+	 * @return сколько записей убрано
+	 */
+	public int forgetBurntWithoutItem() {
+		List<Artifact> gone = new ArrayList<>();
+		for (Artifact artifact : artifacts) {
+			if (artifact.inactive && !artifact.present) {
+				gone.add(artifact);
+			}
+		}
+		if (!gone.isEmpty()) {
+			artifacts.removeAll(gone);
+		}
+		return gone.size();
+	}
+
 	/** Топ зрителей по артефактам (для {@code /artifact stats}). */
 	public List<Map.Entry<String, Integer>> topViewers(int limit) {
 		List<Map.Entry<String, Integer>> entries = new ArrayList<>(byViewer.entrySet());
