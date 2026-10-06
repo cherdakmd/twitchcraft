@@ -96,11 +96,17 @@ jobs:
               re.IGNORECASE)
 
           def excerpt(path, name, tail_lines=25):
-              tail = read_tail(path)
+              tail = read_tail(path, 400)
               picked = [line for line in tail if interesting.search(line)]
+              # К найденным строкам всегда добавляем сырой хвост лога: без него
+              # причину падения задачи Gradle иногда не видно.
+              raw = tail[-40:]
               if not picked:
-                  picked = tail[-tail_lines:]
-              return picked[-120:]
+                  return raw
+              out = picked[-100:]
+              out.append("--- хвост лога ---")
+              out.extend(raw)
+              return out
 
           build_lines = excerpt(os.environ.get("BUILD_LOG", ""), "сборка")
           test_lines = excerpt(os.environ.get("TESTS_LOG", ""), "тесты")
