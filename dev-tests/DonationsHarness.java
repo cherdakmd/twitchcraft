@@ -72,7 +72,28 @@ public class DonationsHarness {
         return r.statusCode() + " " + r.body();
     }
 
+    /**
+     * Начать вход с повтором: локальный callback-порт 8635 освобождается чуть позже,
+     * чем заканчивается предыдущая попытка входа, и на медленном раннере первый
+     * beginLogin() может вернуть null («Address already in use»).
+     */
+    static String beginLoginWithRetry(DonationAlertsClient da) throws Exception {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            if (!da.isLoginInProgress()) {
+                String url = da.beginLogin();
+                if (url != null) {
+                    return url;
+                }
+            }
+            Thread.sleep(200);
+        }
+        return null;
+    }
+
     static String queryParam(String url, String name) {
+        if (url == null) {
+            return null; // вход не начался (например, порт callback ещё занят) — не роняем тест NPE
+        }
         String query = URI.create(url).getRawQuery();
         if (query == null) return null;
         for (String pair : query.split("&")) {
@@ -118,7 +139,7 @@ public class DonationsHarness {
         mod.config.donations.donationAlertsClientId = "not-a-client-id";
         check("non-numeric Client ID rejected before opening callback", da.beginLogin() == null && !da.isLoginInProgress());
         mod.config.donations.donationAlertsClientId = "12345";
-        String loginUrl = da.beginLogin();
+        String loginUrl = beginLoginWithRetry(da);
         check("login url built", loginUrl != null && loginUrl.contains("client_id=12345") && loginUrl.contains("response_type=token")
                 && loginUrl.contains("redirect_uri=http%3A%2F%2Flocalhost%3A8635%2Fda") && loginUrl.contains("oauth-donation-subscribe"));
         URI authUri = URI.create(loginUrl);
@@ -139,7 +160,7 @@ public class DonationsHarness {
                 && authErrorPage.contains("invalid_client") && authErrorPage.contains("Client ID")
                 && authErrorPage.contains("http://localhost:8635/da") && waitFor(() -> !da.isLoginInProgress(), 2000)
                 && Chat.lastText().contains("invalid_client"));
-        String retryAfterQueryError = da.beginLogin();
+        String retryAfterQueryError = beginLoginWithRetry(da);
         String retryState = queryParam(retryAfterQueryError, "state");
         check("login retry after query error starts with fresh state", retryAfterQueryError != null && da.isLoginInProgress()
                 && retryState != null && !retryState.equals(state));
@@ -150,7 +171,7 @@ public class DonationsHarness {
                 && hashAuthError.contains("invalid_client") && hashAuthError.contains("Client ID")
                 && hashAuthError.contains("http://localhost:8635/da") && waitFor(() -> !da.isLoginInProgress(), 2000)
                 && Chat.lastText().contains("invalid_client"));
-        String retryAfterHashError = da.beginLogin();
+        String retryAfterHashError = beginLoginWithRetry(da);
         check("login retry after fragment error starts", retryAfterHashError != null && da.isLoginInProgress());
         loginUrl = retryAfterHashError;
         String landing = http("http://127.0.0.1:8635/da");

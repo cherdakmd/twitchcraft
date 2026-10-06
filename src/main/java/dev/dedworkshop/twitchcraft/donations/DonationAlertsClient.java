@@ -239,11 +239,18 @@ public class DonationAlertsClient implements CentrifugoClient.Handler {
 		if (expectedState == null || !expectedState.equals(loginState)) {
 			return false;
 		}
+		// Порт освобождаем сразу: LocalCallbackServer закрывает сокет сам, но уже после того,
+		// как браузер получил ответ. Если пользователь (или тест) начнёт вход повторно в этот момент,
+		// новый сервер не сможет занять порт и вход упадёт с «Address already in use».
+		LocalCallbackServer server = loginServer;
 		loginServer = null;
 		loginState = null;
 		if (loginTimeout != null) {
 			loginTimeout.cancel(false);
 			loginTimeout = null;
+		}
+		if (server != null) {
+			server.close();
 		}
 		return true;
 	}
