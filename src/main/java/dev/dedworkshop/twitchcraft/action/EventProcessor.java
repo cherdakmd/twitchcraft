@@ -1,6 +1,8 @@
 package dev.dedworkshop.twitchcraft.action;
 
 import dev.dedworkshop.twitchcraft.TwitchCraftClient;
+import dev.dedworkshop.twitchcraft.api.AddonElements;
+import dev.dedworkshop.twitchcraft.api.AddonRegistry;
 import dev.dedworkshop.twitchcraft.config.DonationPresets;
 import dev.dedworkshop.twitchcraft.config.ModConfig;
 import dev.dedworkshop.twitchcraft.module.Module;
@@ -36,6 +38,8 @@ public class EventProcessor {
 	private final Deque<TwitchEvent> queue = new ArrayDeque<>();
 	private final Deque<Long> recent = new ArrayDeque<>();
 	private final Random random = new Random();
+
+	private final java.util.Set<String> warnedRewardTitles = new java.util.HashSet<>();
 
 	private boolean paused;
 	private int queueWait;
@@ -272,21 +276,10 @@ public class EventProcessor {
 			Chat.info(hideMessage ? event.withoutMessage().describe() : event.describe());
 		}
 
-		ModConfig.Resolved resolved = config.findAction(event);
-		if (resolved == null) {
-			finish(event, "нет действия");
-			countForGoals(event);
-			return;
-		}
-		ModConfig.Action action = resolved.action();
-		if (!action.enabled) {
-			finish(event, "действие выключено");
-			countForGoals(event);
-			return;
-		}
-
 		String playerName = mc.player != null ? mc.player.getName().getString() : "";
 		Map<String, String> vars = Placeholders.forPending(event, playerName, stats);
+		// Хук 1: переменные аддонов. Идут первыми, чтобы переменные самого мода имели приоритет.
+		vars.putAll(AddonRegistry.variables(event));
 		if (funds != null) {
 			vars.putAll(funds.placeholders()); // {fund} {fund_current} {fund_target} {fund_percent} {fund_left} {fund_currency}
 		}
@@ -297,6 +290,28 @@ public class EventProcessor {
 		}
 		if (mod.streamStatus() != null) {
 			vars.putAll(mod.streamStatus().placeholders()); // {stream_time} {viewers} {live}
+		}
+
+		// Хуки 2–4: действия аддонов и привязка награды по id. Работают независимо от того, настроено ли
+		// действие в конфиге; кулдаунами и правами аддон управляет сам (условием своего триггера).
+		boolean addonHandled = runAddonHooks(event, vars);
+
+		ModConfig.Resolved resolved = config.findAction(event);
+		if (resolved == null) {
+			if (event.type() == TwitchEvent.Type.REWARD && !event.synthetic() && config.showEventsInChat) {
+				// Зритель потратил баллы, а выполнять нечего: без этой подсказки выглядит как «мод ничего не сделал».
+				Chat.warn("Для награды «" + event.reward() + "» нет действия: добавь запись с таким названием в раздел rewards "
+						+ "(или «*» для всех остальных) — /twitch config → Награды за баллы.");
+			}
+			finish(event, addonHandled ? "выполнено (аддон)" : "нет действия");
+			countForGoals(event);
+			return;
+		}
+		ModConfig.Action action = resolved.action();
+		if (!action.enabled) {
+			finish(event, "действие выключено");
+			countForGoals(event);
+			return;
 		}
 
 		// Права (только чат-команды; тестовые события — без проверки)
@@ -349,6 +364,58 @@ public class EventProcessor {
 		finish(event, "выполнено");
 		runner.run(event, action, vars, () -> mod.rewards().fulfill(event));
 		countForGoals(event);
+	}
+
+	/**
+	 * Хуки аддонов на одном событии: привязка награды по id (хук 3) и действия с подходящим
+	 * триггером — обычные (хук 2) и из кастомных триггеров {@code v0…v3} (хук 4).
+	 * Мод выполняет элементы сам, ошибки аддона гасятся и пишутся в лог.
+	 *
+	 * @return true, если сработал хотя бы один хук аддона
+	 */
+	private boolean runAddonHooks(TwitchEvent event, Map<String, String> vars) {
+		boolean handled = false;
+		AddonRegistry.RewardBinding binding = AddonRegistry.reward(event.rewardId());
+		if (binding != null) {
+			handled = true;
+			warnAboutRenamedReward(binding, event);
+			try {
+				binding.handler().onRedeem(event, event.message() == null ? "" : event.message());
+			} catch (Throwable t) {
+				TwitchCraftClient.LOGGER.error("Аддон «{}»: ошибка обработки награды «{}» ({}) с вводом «{}»",
+						binding.addonId(), binding.rewardTitle(), binding.rewardId(), event.message(), t);
+			}
+		}
+		for (AddonElements elements : AddonRegistry.elementsFor(event)) {
+			handled = true;
+			if (elements == null || elements.isEmpty()) {
+				continue;
+			}
+			ModConfig.Action action = elements.toConfigAction();
+			if (action.chance < 100 && random.nextInt(100) >= action.chance) {
+				if (notBlank(action.failMessage)) {
+					Chat.send(Component.literal(Placeholders.apply(Chat.colorize(action.failMessage), vars)));
+				}
+				continue;
+			}
+			runner.run(event, action, vars, () -> { });
+		}
+		return handled;
+	}
+
+	/** Награду переименовали в Twitch — предупреждаем один раз: привязка по id продолжает работать. */
+	private void warnAboutRenamedReward(AddonRegistry.RewardBinding binding, TwitchEvent event) {
+		String expected = binding.rewardTitle();
+		String actual = event.reward();
+		if (expected == null || expected.isBlank() || actual == null || actual.isBlank()
+				|| expected.equalsIgnoreCase(actual)) {
+			return;
+		}
+		String key = binding.rewardId() + "|" + expected + "|" + actual;
+		if (warnedRewardTitles.add(key)) {
+			Chat.warn("Аддон «" + binding.addonId() + "» привязан к награде «" + expected + "» (id " + binding.rewardId()
+					+ "), а сейчас активирована «" + actual + "». Привязка по id работает, но название стоит обновить.");
+		}
 	}
 
 	/** Засчитывает событие в цели и сборы; достигнутые цели / закрытые сборы обрабатываются как отдельные события. */

@@ -28,6 +28,8 @@ class GameEventsScreen extends BaseScreen {
 			TwitchEvent.GAME_ADVANCEMENT_GOAL, "Цель",
 			TwitchEvent.GAME_ADVANCEMENT_CHALLENGE, "Испытание",
 			TwitchEvent.GAME_BOSS, "Босс повержен",
+			TwitchEvent.GAME_BOSS_SPAWN, "Босс аддона появился",
+			TwitchEvent.GAME_BOSS_DEFEAT, "Босс аддона повержен",
 			TwitchEvent.GAME_DIMENSION, "Смена измерения");
 	private static final Map<String, String> HINTS = Map.of(
 			TwitchEvent.GAME_DEATH, "{cause} — причина, {deaths} / {deaths_total} — счётчики",
@@ -35,6 +37,8 @@ class GameEventsScreen extends BaseScreen {
 			TwitchEvent.GAME_ADVANCEMENT_GOAL, "если пусто — используется действие «Достижение»",
 			TwitchEvent.GAME_ADVANCEMENT_CHALLENGE, "если пусто — используется действие «Достижение»",
 			TwitchEvent.GAME_BOSS, "{boss} — кто, {killer} — кем (если не ты), {bosses} — счётчик",
+			TwitchEvent.GAME_BOSS_SPAWN, "{boss} — имя босса, {bosses} — сколько вызовов, координаты в скобках",
+			TwitchEvent.GAME_BOSS_DEFEAT, "{boss} — имя босса, {user} — кто победил, {bosses} — счётчик побед",
 			TwitchEvent.GAME_DIMENSION, "{dimension} — куда (Нижний мир / Край / Верхний мир)");
 
 	private boolean settingsChanged;

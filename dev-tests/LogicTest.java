@@ -577,6 +577,67 @@ public class LogicTest {
                 System.out.println("     !! " + e);
             }
             check("throwing command: tick survives, other sequences complete", !threw && tBad.runningCount() == 0 && executed.contains("give @s diamond"));
+
+            // Регрессия «после фоллова награда не выдалась»: ошибка внутри одной команды отменяла всю
+            // последовательность — пропадали и остальные команды, и выпавший подарок, и подтверждение
+            // активации (баллы зрителя «зависали» на Twitch). Теперь ошибочная команда пропускается.
+            executed.clear();
+            done[0] = 0;
+            ModConfig.Action tBoomLoot = new ModConfig.Action();
+            tBoomLoot.commands = new ArrayList<>(List.of("boom now", "say after boom"));
+            tBoomLoot.loot = new ArrayList<>(List.of(ModConfig.Action.lootEntry("алмаз", 1, "give @s diamond")));
+            ActionRunner tBoomRunner = new ActionRunner(null) {
+                @Override
+                protected boolean runCommand(String command) {
+                    if (command.startsWith("boom")) throw new IllegalStateException("test failure");
+                    executed.add(command);
+                    return true;
+                }
+            };
+            tBoomRunner.run(fe, tBoomLoot, fv, () -> done[0]++);
+            threw = false;
+            try {
+                for (int t = 0; t < 20 && tBoomRunner.runningCount() > 0; t++) {
+                    tBoomRunner.tick(mc);
+                }
+            } catch (Exception e) {
+                threw = true;
+                System.out.println("     !! " + e);
+            }
+            check("throwing command: the rest of the action still runs", !threw && executed.contains("say after boom"));
+            check("throwing command: loot is still issued", executed.contains("give @s diamond"));
+            check("throwing command: reward confirmed once (onDone), queue empty", done[0] == 1 && tBoomRunner.runningCount() == 0);
+            check("throwing command: player is warned in chat", dev.dedworkshop.twitchcraft.util.Chat.lastText().contains("Не выполнено"));
+
+            // Ошибка при показе выпавшей записи (заголовок/звук/тост/ответ) не отменяет сам подарок.
+            // mod == null, поэтому mod.reply внутри runLoot бросает NPE — как любая ошибка эффектов.
+            executed.clear();
+            done[0] = 0;
+            ModConfig.Action tBadEffects = new ModConfig.Action();
+            tBadEffects.commands = new ArrayList<>(List.of("say gift"));
+            ModConfig.Action badLoot = ModConfig.Action.lootEntry("золотое яблоко", 1, "give @s golden_apple");
+            badLoot.reply = "Держи {loot}!";
+            tBadEffects.loot = new ArrayList<>(List.of(badLoot));
+            ActionRunner tEffectsRunner = new ActionRunner(null) {
+                @Override
+                protected boolean runCommand(String command) {
+                    executed.add(command);
+                    return true;
+                }
+            };
+            tEffectsRunner.run(fe, tBadEffects, fv, () -> done[0]++);
+            threw = false;
+            try {
+                for (int t = 0; t < 20 && tEffectsRunner.runningCount() > 0; t++) {
+                    tEffectsRunner.tick(mc);
+                }
+            } catch (Exception e) {
+                threw = true;
+                System.out.println("     !! " + e);
+            }
+            check("loot effects failed: main commands ran", !threw && executed.contains("say gift"));
+            check("loot effects failed: loot still given, onDone once, queue empty",
+                    executed.contains("give @s golden_apple") && done[0] == 1 && tEffectsRunner.runningCount() == 0);
             net.minecraft.client.Minecraft.INSTANCE = null;
         }
 
@@ -1149,11 +1210,20 @@ public class LogicTest {
                 p6runner.tick(p6mc);
             }
             Set<String> p6allBad = new HashSet<>();
+            Map<String, String> p6vars = Placeholders.of(p6ev, "Steve", new SessionStats());
             for (ModConfig.Action a : p6bad) {
                 p6allBad.addAll(a.commands);
             }
-            check("runner: reward ran the picked ☠ entry's commands (" + p6exec.size() + " cmds)", p6done[0] == 1 && !p6exec.isEmpty()
-                    && p6exec.stream().filter(c -> !c.startsWith("delay")).allMatch(p6allBad::contains));
+            // Команды из ценника содержат {user}/{sum}/… — ActionRunner подставляет их перед выполнением,
+            // поэтому сравниваем и сырой вид, и с подстановкой, и по началу строки до первого плейсхолдера
+            // (иначе тест «мигает» в зависимости от того, какая запись выпала).
+            java.util.function.Predicate<String> p6known = c -> p6allBad.stream().anyMatch(raw ->
+                    raw.equals(c) || Placeholders.apply(raw, p6vars).equals(c)
+                            || (raw.indexOf('{') > 0 && c.startsWith(raw.substring(0, raw.indexOf('{')))));
+            List<String> p6unknown = p6exec.stream().filter(c -> !c.startsWith("delay")).filter(c -> !p6known.test(c)).toList();
+            check("runner: reward ran the picked ☠ entry's commands (" + p6exec.size() + " cmds"
+                    + (p6unknown.isEmpty() ? "" : ", лишние: " + p6unknown) + ")", p6done[0] == 1 && !p6exec.isEmpty()
+                    && p6unknown.isEmpty());
             check("runner: reply has the picked name, no raw placeholders: " + p6replies, p6replies.size() == 1 && p6replies.get(0).startsWith("Viewer, выпало: ☠ ")
                     && !p6replies.get(0).contains("{picked}") && p6replies.get(0).length() > "Viewer, выпало: ☠ ".length());
             check("Placeholders: {picked}/{picked_text} default to empty for ordinary events",

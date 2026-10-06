@@ -3,6 +3,7 @@ package dev.dedworkshop.twitchcraft;
 import dev.dedworkshop.twitchcraft.action.EventProcessor;
 import dev.dedworkshop.twitchcraft.action.FundraiserTracker;
 import dev.dedworkshop.twitchcraft.action.GoalTracker;
+import dev.dedworkshop.twitchcraft.api.AddonManager;
 import dev.dedworkshop.twitchcraft.command.TwitchCommands;
 import dev.dedworkshop.twitchcraft.config.ModConfig;
 import dev.dedworkshop.twitchcraft.donations.DonationManager;
@@ -154,6 +155,10 @@ public class TwitchCraftClient implements ClientModInitializer {
 			}
 		}, 20, 60, TimeUnit.SECONDS);
 
+		// Аддоны (отдельные моды, например «Артефакты») подключаются последними:
+		// к этому моменту готовы конфиг, чат, команды и планировщик.
+		AddonManager.loadAll(this);
+
 		LOGGER.info("TwitchCraft загружен. Введи /twitch в игре для настройки.");
 	}
 
@@ -168,6 +173,8 @@ public class TwitchCraftClient implements ClientModInitializer {
 			events.tick(client);
 			game.tick(client);
 			timers.tick();
+			// Аддоны (свой try/catch внутри — ошибка аддона не ломает мод и игру)
+			AddonManager.tick(client);
 		} catch (Exception e) {
 			LOGGER.error("Ошибка в тике TwitchCraft (игра продолжает работать)", e);
 			long now = System.currentTimeMillis();
@@ -263,7 +270,9 @@ public class TwitchCraftClient implements ClientModInitializer {
 	 * {stream_time} {viewers}, {fund_*}, {donation_prices_*} {donation_currency}, {player}.
 	 */
 	public java.util.Map<String, String> globalPlaceholders() {
-		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>();
+		// Хук 1: переменные аддонов (без события). Мод идёт вторым, чтобы свои имена имели приоритет.
+		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>(
+				dev.dedworkshop.twitchcraft.api.AddonRegistry.globalVariables());
 		Minecraft mc = Minecraft.getInstance();
 		vars.put("player", mc != null && mc.player != null ? mc.player.getName().getString() : "");
 		if (events != null) {
@@ -480,6 +489,9 @@ public class TwitchCraftClient implements ClientModInitializer {
 		Minecraft.getInstance().execute(() -> {
 			try {
 				events.handle(event);
+				// Аддоны получают каждое событие (даже то, что мод отбросил: например, «выдача артефакта»
+				// зрителю важна и без действия в игре)
+				AddonManager.dispatchEvent(event);
 			} catch (Exception e) {
 				LOGGER.error("Ошибка обработки события {} (игра продолжает работать)", event.shortText(), e);
 				Chat.error("Не удалось обработать событие " + event.type() + ": " + e.getClass().getSimpleName() + " — подробности в logs/latest.log");
@@ -488,6 +500,7 @@ public class TwitchCraftClient implements ClientModInitializer {
 	}
 
 	private void shutdown() {
+		AddonManager.shutdown();
 		eventSub.disconnect();
 		donations.shutdown();
 		vk.shutdown();
@@ -524,6 +537,7 @@ public class TwitchCraftClient implements ClientModInitializer {
 		if (vk != null) {
 			vk.syncWithConfig();
 		}
+		AddonManager.configChanged();
 	}
 
 	public void setPaused(boolean paused) {
