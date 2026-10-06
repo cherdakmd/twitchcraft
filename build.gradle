@@ -44,6 +44,54 @@ java {
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
+// ---------------------------------------------------------------------------
+//  Аддон «Артефакты» — отдельный jar (artifact-addon-<версия>.jar).
+//
+//  Исходники живут в src/artifactAddon, компилируются вместе с основным модом
+//  (чтобы использовать его API — dev.dedworkshop.twitchcraft.api) и упаковываются
+//  в собственный файл мода с точкой входа "twitchcraft-addon".
+//  В игре аддон можно ставить отдельно от TwitchCraft: он подключается сам,
+//  если TwitchCraft установлен, и объявлен как его зависимость.
+// ---------------------------------------------------------------------------
+// Версию аддона читаем один раз, на этапе настройки (так безопасно и для configuration cache).
+def addonVersion = project.addon_version
+
+sourceSets {
+	artifactAddon {
+		java.srcDirs = ['src/artifactAddon/java']
+		resources.srcDirs = ['src/artifactAddon/resources']
+		compileClasspath += sourceSets.main.output + configurations.compileClasspath
+		runtimeClasspath += output + compileClasspath
+	}
+}
+
+tasks.named('processArtifactAddonResources', ProcessResources).configure {
+	// Внутри filesMatching { } нельзя обращаться к project.*: это выполняется при запуске
+	// задачи, а configuration cache такое запрещает. Версия взята выше, на этапе настройки.
+	inputs.property "version", addonVersion
+	filesMatching('fabric.mod.json') {
+		expand "version": addonVersion
+	}
+}
+
+// Отдельный jar аддона. Ремап не нужен: Loom считает Minecraft новее 1.21.11
+// необфусцированным (MinecraftMetadataProvider.isUnobfuscated — у версии нет client_mappings),
+// поэтому и мод, и аддон собираются в именах, которые игра понимает как есть.
+// Если сборка когда-нибудь вернётся к обфусцированной версии игры, аддон придётся
+// прогонять через net.fabricmc.loom.task.RemapJarTask — см. AUDIT.md.
+tasks.register('artifactAddonJar', Jar) {
+	group = 'build'
+	description = 'Собирает аддон «Артефакты» в отдельный jar'
+	archiveBaseName.set('artifact-addon')
+	archiveVersion.set(addonVersion)
+	from sourceSets.artifactAddon.output
+	dependsOn tasks.named('artifactAddonClasses')
+}
+
+tasks.named('build') {
+	dependsOn tasks.named('artifactAddonJar')
+}
+
 jar {
 	def projectName = project.name
 	inputs.property "projectName", projectName

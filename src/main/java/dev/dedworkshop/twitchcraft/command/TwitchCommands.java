@@ -57,6 +57,13 @@ public final class TwitchCommands {
 		return builder.buildFuture();
 	};
 
+	private static final SuggestionProvider<FabricClientCommandSource> TRIGGER_SLOTS = (ctx, builder) -> {
+		for (int i = 0; i < dev.dedworkshop.twitchcraft.api.AddonRegistry.MAX_CUSTOM_TRIGGERS; i++) {
+			builder.suggest("v" + i);
+		}
+		return builder.buildFuture();
+	};
+
 	private static SuggestionProvider<FabricClientCommandSource> goalNames(TwitchCraftClient mod) {
 		return (ctx, builder) -> {
 			for (ModConfig.Goal goal : mod.config().goals) {
@@ -101,6 +108,14 @@ public final class TwitchCommands {
 										.then(literal("on").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), true)))
 										.then(literal("off").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), false)))
 										.then(literal("toggle").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), null)))))
+						.then(literal("addons")
+								.executes(ctx -> addons(""))
+								.then(literal("actions").executes(ctx -> addons("actions")))
+								.then(literal("rewards").executes(ctx -> addons("rewards")))
+								.then(literal("triggers").executes(ctx -> addons("triggers")))
+								.then(literal("fire")
+										.then(argument("slot", StringArgumentType.word()).suggests(TRIGGER_SLOTS)
+												.executes(ctx -> addonsFire(mod, StringArgumentType.getString(ctx, "slot"))))))
 
 						// Цели
 						.then(literal("goals")
@@ -558,6 +573,101 @@ public final class TwitchCommands {
 
 	// ---------- Модули ----------
 
+	/** Список подключённых аддонов (отдельные моды вроде «Артефактов»). */
+	private static int addons(String section) {
+		java.util.List<String> ids = dev.dedworkshop.twitchcraft.api.AddonManager.loadedIds();
+		if (ids.isEmpty()) {
+			Chat.info("Аддоны не подключены. Аддон — отдельный мод-файл, который ставится рядом с TwitchCraft "
+					+ "(например §eartifact-addon§7 — артефакты с проклятиями).");
+			return 1;
+		}
+		switch (section) {
+			case "actions" -> {
+				var actions = dev.dedworkshop.twitchcraft.api.AddonRegistry.actions();
+				if (actions.isEmpty()) {
+					Chat.info("Аддоны не зарегистрировали действий.");
+					return 1;
+				}
+				Chat.info("§5§lДействия аддонов §7(" + actions.size() + ")");
+				for (var action : actions) {
+					Chat.info("  §a● §f" + action.id() + "§7 — " + action.title() + " §8[" + action.trigger() + "]");
+				}
+				return 1;
+			}
+			case "rewards" -> {
+				var rewards = dev.dedworkshop.twitchcraft.api.AddonRegistry.rewards();
+				if (rewards.isEmpty()) {
+					Chat.info("Ни одна награда за баллы канала не привязана к аддонам. Привязка идёт по id награды.");
+					return 1;
+				}
+				Chat.info("§5§lНаграды, привязанные к аддонам §7(" + rewards.size() + ")");
+				for (var binding : rewards) {
+					Chat.info("  §a● §f" + (binding.rewardTitle().isBlank() ? "(без названия)" : binding.rewardTitle())
+							+ "§7 — id §8" + binding.rewardId() + "§7, аддон §f" + binding.addonId());
+				}
+				return 1;
+			}
+			case "triggers" -> {
+				var triggers = dev.dedworkshop.twitchcraft.api.AddonRegistry.customTriggers();
+				if (triggers.isEmpty()) {
+					Chat.info("Кастомные триггеры не зарегистрированы (у аддона их может быть до "
+							+ dev.dedworkshop.twitchcraft.api.AddonRegistry.MAX_CUSTOM_TRIGGERS + ").");
+					return 1;
+				}
+				Chat.info("§5§lКастомные триггеры аддонов §7(" + triggers.size() + ")");
+				for (var trigger : triggers) {
+					Chat.info("  §a● §f" + trigger.slot() + "§7 — " + trigger.name() + " §8[" + trigger.trigger() + "]§7, "
+							+ "действий: " + trigger.actions().size() + (trigger.description().isBlank() ? "" : ", " + trigger.description()));
+				}
+				Chat.info("§7Запустить вручную: §f/twitch addons fire v0");
+				return 1;
+			}
+			default -> {
+				Chat.info("§5§lАддоны TwitchCraft §7(" + ids.size() + ") — " + dev.dedworkshop.twitchcraft.api.AddonRegistry.summary());
+				for (String id : ids) {
+					Chat.info("  §a● §f" + id);
+				}
+				Chat.info("§7Подробности: §f/twitch addons actions§7, §frewards§7, §ftriggers§7, запуск — §ffire v0…v3");
+				return 1;
+			}
+		}
+	}
+
+	/** Ручной запуск кастомного триггера аддона (слот v0…v3) — проверить механику без зрителей. */
+	private static int addonsFire(TwitchCraftClient mod, String slot) {
+		int index;
+		try {
+			index = Integer.parseInt(slot.trim().toLowerCase(java.util.Locale.ROOT).replace("v", ""));
+		} catch (NumberFormatException e) {
+			Chat.error("Слот кастомного триггера — v0…v" + (dev.dedworkshop.twitchcraft.api.AddonRegistry.MAX_CUSTOM_TRIGGERS - 1)
+					+ ", например §f/twitch addons fire v0");
+			return 0;
+		}
+		var trigger = dev.dedworkshop.twitchcraft.api.AddonRegistry.customTrigger(index);
+		if (trigger == null) {
+			Chat.error("Слот v" + index + " пуст: этот кастомный триггер никто не зарегистрировал.");
+			return 0;
+		}
+		String player = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getName().getString() : "Игрок";
+		TwitchEvent event = TwitchEvent.test(TwitchEvent.Type.CHAT_COMMAND, player, 0, "", trigger.name(), "");
+		if (mod.events() == null) {
+			Chat.error("Обработчик событий ещё не запущен — попробуй в мире.");
+			return 0;
+		}
+		int fired = 0;
+		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>(mod.globalPlaceholders());
+		vars.putAll(dev.dedworkshop.twitchcraft.api.AddonRegistry.variables(event));
+		for (var elements : trigger.actions()) {
+			if (elements == null || elements.isEmpty()) {
+				continue;
+			}
+			mod.events().runner().run(event, elements.toConfigAction(), vars, () -> { });
+			fired++;
+		}
+		Chat.success("Кастомный триггер v" + index + " «" + trigger.name() + "» запущен вручную (действий: " + fired + ").");
+		return 1;
+	}
+
 	private static int modules(TwitchCraftClient mod) {
 		Chat.info("§5§lМодули §7(клик — переключить; также /twitch config)");
 		Module.Kind kind = null;
@@ -819,6 +929,8 @@ public final class TwitchCommands {
 		source.sendFeedback(Component.literal(""));
 		source.sendFeedback(Component.literal("§e/twitch config§7 — экран настроек (модули, награды, события, цели)"));
 		source.sendFeedback(Component.literal("§e/twitch modules§7 — список модулей, §e/twitch module <id> on|off§7 — включить/выключить"));
+		source.sendFeedback(Component.literal("§e/twitch addons§7 — подключённые аддоны (отдельные мод-файлы, например «Артефакты»); "
+				+ "§f/twitch addons actions|rewards|triggers§7 — что они добавили, §f/twitch addons fire v0§7 — проверить кастомный триггер"));
 		source.sendFeedback(Component.literal("§e/twitch goals§7 — прогресс целей, §e/twitch goals reset§7 — сбросить"));
 		source.sendFeedback(Component.literal("§e/twitch fund§7 — сборы средств (боссбар): §efund create <имя> <цель>§7, §efund add <имя> <сумма>§7, §efund reset"));
 		source.sendFeedback(Component.literal("§e/twitch status§7 — состояние подключения и прав"));
@@ -970,6 +1082,8 @@ public final class TwitchCommands {
 			case "goal", "цель" -> TwitchEvent.GAME_ADVANCEMENT_GOAL;
 			case "challenge", "испытание" -> TwitchEvent.GAME_ADVANCEMENT_CHALLENGE;
 			case "boss", "босс" -> TwitchEvent.GAME_BOSS;
+			case "bossspawn", "spawn", "босспоявился" -> TwitchEvent.GAME_BOSS_SPAWN;
+			case "bossdefeat", "defeat", "боссповержен" -> TwitchEvent.GAME_BOSS_DEFEAT;
 			case "dimension", "измерение", "nether", "end" -> TwitchEvent.GAME_DIMENSION;
 			default -> TwitchEvent.GAME_DEATH;
 		};

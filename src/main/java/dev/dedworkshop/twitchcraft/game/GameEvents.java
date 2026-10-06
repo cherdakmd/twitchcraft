@@ -281,6 +281,10 @@ public class GameEvents {
 			case TwitchEvent.GAME_ADVANCEMENT_GOAL -> TwitchEvent.game(kind, player, "Освободить Край", "Удачи!", stats.advancements + 1, true);
 			case TwitchEvent.GAME_ADVANCEMENT_CHALLENGE -> TwitchEvent.game(kind, player, "Как мы сюда попали?", "Получите все эффекты одновременно", stats.advancements + 1, true);
 			case TwitchEvent.GAME_BOSS -> TwitchEvent.game(kind, player, "Иссушитель", "", stats.bosses + 1, true);
+			// События аддонов (боссы аддона «Артефакты») — публикуются через AddonContext.publish
+			case TwitchEvent.GAME_BOSS_SPAWN -> TwitchEvent.game(kind, "Аддон «Артефакты»", "Кровавый Палач",
+					"X 120 Z -340", 1, true);
+			case TwitchEvent.GAME_BOSS_DEFEAT -> TwitchEvent.game(kind, player, "Кровавый Палач", player, 1, true);
 			case TwitchEvent.GAME_DIMENSION -> TwitchEvent.game(kind, player, "Нижний мир", "minecraft:the_nether", stats.dimensionChanges + 1, true);
 			default -> TwitchEvent.game(TwitchEvent.GAME_DEATH, player, player + " пытался(ась) поплавать в лаве", "", stats.deaths + 1, true);
 		};

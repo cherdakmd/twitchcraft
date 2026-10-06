@@ -255,7 +255,18 @@ public class VkLive implements VkPubSub.Handler {
 	}
 
 	private void onLoginCallback(Map<String, String> params) {
+		// Освобождаем порт до возврата из обработчика: иначе повторный вход сразу после ошибки
+		// (или ручной ввод кода) может получить «Address already in use».
+		LocalCallbackServer server = loginServer;
 		loginServer = null;
+		ScheduledFuture<?> timeout = loginTimeout;
+		loginTimeout = null;
+		if (timeout != null) {
+			timeout.cancel(false);
+		}
+		if (server != null) {
+			server.close();
+		}
 		finishLogin(params.get("code"));
 	}
 
