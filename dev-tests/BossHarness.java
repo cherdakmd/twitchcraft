@@ -82,10 +82,10 @@ public class BossHarness {
 
 		// ---------- Навыки ----------
 		section("Навыки (11 штук)");
-		check("список навыков — 11", BossSkills.SKILLS.size() == 11);
-		check("описания есть у всех", BossSkills.SKILLS.stream().allMatch(s -> s != null
+		check("список навыков — 11", BossCatalog.SKILLS.size() == 11);
+		check("описания есть у всех", BossCatalog.SKILLS.stream().allMatch(s -> s != null
 				&& !BossSkills.description(s).isBlank() && !BossSkills.description(s).equals("неизвестный навык")));
-		for (String skill : BossSkills.SKILLS) {
+		for (String skill : BossCatalog.SKILLS) {
 			List<String> commands = BossSkills.commands(skill, ctx());
 			check("навык " + skill + " даёт команды (" + commands.size() + ")", !commands.isEmpty());
 		}
