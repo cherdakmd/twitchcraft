@@ -111,12 +111,6 @@ public final class ArtifactConfig {
 		public String broken = "§c☠ Артефакт «{name}» поглотило проклятие ({percent}) — он рассыпался в пыль!";
 		public String full = "§eАртефактов уже {max} — «{name}» ускользнул. Используй или разрушь один из них.";
 		public String inactive = "§cНе удалось убрать «{name}» из инвентаря — выброси его руками, он больше не действует.";
-		public String bossAnnounce = "§5§lМИРОВОЕ СОБЫТИЕ!§r §fДревнее зло пробуждается: §d{boss}§f появится через §a{minutes} мин§f. "
-				+ "Координаты: X: §c{x}§f Z: §c{z}";
-		public String bossSpawn = "§d§l⚡ БОСС ПОЯВИЛСЯ!§r §f{boss}§r ждёт сражения (X {x} Z {z}, {health} HP). Сражение началось!";
-		public String bossDefeat = "§a☠ {boss}§r повержен!§f Победитель: §f{killer}";
-		/** Если убийцу определить не удалось (например, босс сгорел или упал). */
-		public String bossNoKiller = "неизвестный герой";
 	}
 
 	/**
@@ -265,8 +259,8 @@ public final class ArtifactConfig {
 		bosses.skillRange = clamp(bosses.skillRange, 4, 256);
 		bosses.artifactChancePercent = clamp(bosses.artifactChancePercent, 0, 100);
 		if (bosses.disabled == null) bosses.disabled = new ArrayList<>();
-		if (bosses.attributes == null) bosses.attributes = new Attributes();
-		if (bosses.texts == null) bosses.texts = new Texts();
+		if (bosses.attributes == null) bosses.attributes = new Bosses.Attributes();
+		if (bosses.texts == null) bosses.texts = new Bosses.Texts();
 		if (bosses.summonCommand == null || bosses.summonCommand.isBlank()) {
 			bosses.summonCommand = Bosses.DEFAULT_SUMMON;
 		}

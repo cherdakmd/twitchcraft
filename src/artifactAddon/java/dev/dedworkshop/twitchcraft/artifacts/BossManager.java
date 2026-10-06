@@ -44,7 +44,6 @@ public final class BossManager {
 	private long lastCheckAt;
 	private long lastSkillAt;
 	private boolean announced;
-	private LivingEntity activeEntity;
 
 	public BossManager(ArtifactsAddon addon) {
 		this.addon = addon;
@@ -78,14 +77,14 @@ public final class BossManager {
 		store.bossActiveName = "";
 		store.bossDefeats++;
 		store.save();
-		activeEntity = null;
 		removeBossBar();
 
 		ArtifactConfig config = addon.config();
-		ArtifactConfig.Texts texts = config == null ? new ArtifactConfig.Texts() : config.texts;
-		String text = ArtifactFactory.text(texts.bossDefeat, Map.of(
+		ArtifactConfig.Bosses.Texts texts = config == null || config.bosses == null
+				? new ArtifactConfig.Bosses.Texts() : config.bosses.texts;
+		String text = ArtifactFactory.text(texts.defeat, Map.of(
 				"boss", bossName,
-				"killer", killer.isBlank() ? texts.bossNoKiller : killer,
+				"killer", killer.isBlank() ? texts.noKiller : killer,
 				"player", killer.isBlank() ? "" : killer));
 		announce(text);
 
@@ -105,11 +104,9 @@ public final class BossManager {
 		if (boss == null) {
 			return false;
 		}
-		if (!entity.getType().toString().equalsIgnoreCase(boss.type())) { // "entity.minecraft.zombie" и "minecraft:zombie"
-			String type = entity.getType().toString().toLowerCase(Locale.ROOT);
-			if (!type.endsWith(boss.type().toLowerCase(Locale.ROOT).replace("minecraft:", ""))) {
-				return false;
-			}
+		String typeId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+		if (!typeId.equalsIgnoreCase(boss.type())) {
+			return false;
 		}
 		return entity.hasCustomName() && entity.getCustomName() != null
 				&& boss.name().equalsIgnoreCase(entity.getCustomName().getString());
@@ -187,9 +184,7 @@ public final class BossManager {
 		if (player == null) {
 			return; // игрок не в мире: ждём, пока вернётся
 		}
-		double distance = player.blockPosition().distSqr(new net.minecraft.core.BlockPos(
-				(int) store.bossX, (int) store.bossY, (int) store.bossZ));
-		if (Math.sqrt(distance) > Math.max(4, settings.skillRange)) {
+		if (player.distanceToSqr(store.bossX, store.bossY, store.bossZ) > Math.pow(Math.max(4, settings.skillRange), 2)) {
 			return; // далеко — босс ждёт
 		}
 		long cooldownMs = Math.max(1, settings.skillCooldownSeconds) * 1000L;
@@ -313,8 +308,6 @@ public final class BossManager {
 		for (String command : commands) {
 			addon.context().runCommand(command);
 		}
-		activeEntity = null;
-
 		String text = ArtifactFactory.text(settings.texts.spawn, Map.of(
 				"boss", boss.title(),
 				"x", String.valueOf((long) x),
@@ -340,7 +333,6 @@ public final class BossManager {
 		store.bossActiveId = "";
 		store.bossActiveName = "";
 		store.save();
-		activeEntity = null;
 		removeBossBar();
 		if (!silent) {
 			ArtifactChat.warn("Босс" + (name == null || name.isBlank() ? "" : " «" + name + "»") + " убран, следующий — по расписанию.");
@@ -513,12 +505,7 @@ public final class BossManager {
 		return addon.store();
 	}
 
-	private dev.dedworkshop.twitchcraft.api.AddonContext context() {
-		return addon.context();
-	}
-
 	private org.slf4j.Logger log() {
-		dev.dedworkshop.twitchcraft.api.AddonContext ctx = context();
-		return ctx == null ? org.slf4j.LoggerFactory.getLogger("twitchcraft-artifacts") : ctx.logger();
+		return addon.context().logger();
 	}
 }
