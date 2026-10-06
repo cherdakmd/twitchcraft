@@ -2,6 +2,7 @@ package dev.dedworkshop.twitchcraft.api;
 
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,6 +86,34 @@ public class AddonHarness {
 		Map<String, String> values = AddonRegistry.variables(cheer(10));
 		check("падающая переменная пропущена", !values.containsKey("broken_value"));
 		check("остальные переменные живы", "ок".equals(values.get("good_value")));
+
+		// Значение переменной попадает в команды Minecraft, которые мод выполняет с правами
+		// оператора, — значит, чистится так же, как тексты зрителей.
+		AddonRegistry.registerVariable("addon-a", "dangerous", event -> "строка\nс \"кавычкой\" и \u00a7dкодом");
+		check("значение переменной очищается (без переносов, кавычек и \u00a7)",
+				"строка с 'кавычкой' и dкодом".equals(AddonRegistry.variables(cheer(1)).get("dangerous")));
+		AddonRegistry.registerVariable("addon-a", "long_value", event -> "х".repeat(500));
+		check("длинное значение обрезается до 200 символов",
+				AddonRegistry.variables(cheer(1)).get("long_value").length() == 200);
+
+		// applyVariables: аддон занимает только свободные имена — системные плейсхолдеры не перехватывает
+		AddonRegistry.registerVariable("addon-a", "user", event -> "подмена");
+		AddonRegistry.registerVariable("addon-a", "own_var", event -> "своё");
+		Map<String, String> vars = new LinkedHashMap<>();
+		vars.put("user", "Steve");
+		vars.put("amount", "100");
+		AddonRegistry.applyVariables(vars, cheer(100));
+		check("системный плейсхолдер {user} не перехвачен", "Steve".equals(vars.get("user")));
+		check("прочие системные переменные целы", "100".equals(vars.get("amount")));
+		check("свободное имя занято переменной аддона", "своё".equals(vars.get("own_var")));
+		boolean nullsSafe = true;
+		try {
+			AddonRegistry.applyVariables(null, cheer(1));
+			AddonRegistry.applyVariables(vars, null);
+		} catch (Exception e) {
+			nullsSafe = false;
+		}
+		check("applyVariables не падает на null-карту и null-событие", nullsSafe);
 
 		// ---------- Хук 2: действия ----------
 		section("Хук 2: действия (триггер + элементы)");
