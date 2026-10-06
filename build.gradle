@@ -93,6 +93,10 @@ tasks.register('artifactAddonJar', net.fabricmc.loom.task.RemapJarTask) {
 	inputFile.set(tasks.named('artifactAddonRawJar').flatMap { it.archiveFile })
 	classpath.setFrom(sourceSets.artifactAddon.compileClasspath)
 	addNestedDependencies.set(false)
+	// Loom не умеет сериализовать состояние этой задачи в configuration cache,
+	// поэтому для сборок с аддоном Gradle просто не сохраняет кэш конфигурации
+	// (обычная сборка мода кэш по-прежнему использует).
+	notCompatibleWithConfigurationCache('Loom RemapJarTask для отдельного jar аддона')
 }
 
 tasks.named('build') {
