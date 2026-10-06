@@ -131,11 +131,13 @@ public class BossHarness {
 		List<String> teleport = BossSkills.commands("TELEPORT", ctx());
 		boolean teleportNear = false;
 		if (teleport.size() == 1) {
+			// селектор содержит пробел внутри name="...", поэтому координаты берём с конца строки
 			String[] parts = teleport.get(0).split(" ");
-			if (parts.length == 6 && parts[0].equals("tp") && parts[1].startsWith("@e[type=minecraft:zombie")) {
-				double tx = Double.parseDouble(parts[2]);
-				double tz = Double.parseDouble(parts[4]);
-				teleportNear = Math.abs(tx - 100) <= 5 && Math.abs(tz - 200) <= 5 && Double.parseDouble(parts[3]) == 64;
+			if (parts.length >= 4 && parts[0].equals("tp") && parts[1].startsWith("@e[type=minecraft:zombie")) {
+				double tx = Double.parseDouble(parts[parts.length - 3]);
+				double ty = Double.parseDouble(parts[parts.length - 2]);
+				double tz = Double.parseDouble(parts[parts.length - 1]);
+				teleportNear = Math.abs(tx - 100) <= 5 && Math.abs(tz - 200) <= 5 && ty == 64;
 			}
 		}
 		check("TELEPORT: босс смещается недалеко (±5 блоков)", teleportNear);
