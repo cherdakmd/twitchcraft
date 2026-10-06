@@ -1,4 +1,4 @@
-# TwitchCraft 1.7.0 — гайд и мануал
+# TwitchCraft 1.7.1 — гайд и мануал
 
 > **Гайд** (часть I) — пошагово, от установки до первого стрима. Читай подряд.
 > **Мануал** (часть II) — справочник по каждой функции, полю конфига и команде. Читай по оглавлению.
@@ -97,7 +97,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    нажми *Install*. В лаунчере появится профиль **fabric-loader-26.3**.
 2. **Fabric API** для 26.3 — файл `fabric-api-0.161.0+26.3.jar` (или новее для 26.3):
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>.
-3. **TwitchCraft** — файл `twitchcraft-1.7.0.jar` со страницы <https://github.com/cherdakmd/twitchcraft/releases/latest>
+3. **TwitchCraft** — файл `twitchcraft-1.7.1.jar` со страницы <https://github.com/cherdakmd/twitchcraft/releases/latest>
    (тот же файл лежит в папке `release/` репозитория).
 4. **Mod Menu** (по желанию, но очень удобно) — `modmenu-21.0.0.jar`:
    <https://modrinth.com/mod/modmenu/versions?g=26.3>. С ним в главном меню появляется кнопка **Моды**, а у TwitchCraft —
@@ -109,7 +109,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    Если папки `mods` нет — создай.
 6. Запусти лаунчер, выбери профиль **fabric-loader-26.3**, нажми *Играть*.
 
-Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.7.0**. Или зайди в любой мир и
+Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.7.1**. Или зайди в любой мир и
 набери `/twitch` — появится справка.
 
 > **Обновление с прошлых версий**: просто замени jar. Конфиг дополнится новыми разделами сам, твои награды и команды
@@ -1595,4 +1595,4 @@ delay 40                                                      # 2 секунды
 
 ---
 
-*TwitchCraft 1.7.0 · Minecraft 26.3 · Fabric · Каналы dedworkshop (Twitch и VK Video Live). Короткая справка — `README.md`, отчёты аудитов — `AUDIT.md`.*
+*TwitchCraft 1.7.1 · Minecraft 26.3 · Fabric · Каналы dedworkshop (Twitch и VK Video Live). Короткая справка — `README.md`, отчёты аудитов — `AUDIT.md`.*
