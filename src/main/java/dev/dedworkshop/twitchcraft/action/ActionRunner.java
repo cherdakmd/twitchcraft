@@ -107,9 +107,16 @@ public class ActionRunner {
 		int repeat = computeRepeat(loot, vars);
 		vars.put("repeat", String.valueOf(repeat));
 		vars.put("i", "1");
-		showEffects(mc, loot, vars);
-		if (notBlank(loot.reply)) {
-			mod.reply(event, Placeholders.apply(loot.reply, vars));
+		// Эффекты выпавшей записи (заголовок, звук, тост) не должны мешать командам:
+		// иначе ошибка в заголовке/звуке отменяла бы сам подарок (золотое яблоко, наковальня...).
+		try {
+			showEffects(mc, loot, vars);
+			if (notBlank(loot.reply)) {
+				mod.reply(event, Placeholders.apply(loot.reply, vars));
+			}
+		} catch (Exception e) {
+			TwitchCraftClient.LOGGER.error("Ошибка эффектов выпавшей записи «{}» — команды всё равно выполняем", loot.name, e);
+			warnFailed("эффект награды");
 		}
 		startSequence(loot, vars, repeat, onDone);
 	}
@@ -198,6 +205,22 @@ public class ActionRunner {
 		}
 	}
 
+	private long lastFailureWarnAt;
+
+	/**
+	 * Сообщает в чат, что часть действия не выполнилась (не чаще раза в 10 секунд, чтобы не засорять чат на стриме).
+	 * Без этого любая ошибка внутри команды выглядела как «награда просто не пришла».
+	 */
+	private void warnFailed(String what) {
+		long now = System.currentTimeMillis();
+		if (now - lastFailureWarnAt < 10_000) {
+			return;
+		}
+		lastFailureWarnAt = now;
+		Chat.warn("Не выполнено: " + what + " — внутренняя ошибка мода, подробности в logs/latest.log. "
+				+ "Остальные команды и выдача награды продолжаются.");
+	}
+
 	/** Вызывается каждый игровой тик: продвигает последовательности команд. */
 	public void tick(Minecraft mc) {
 		if (running.isEmpty()) {
@@ -218,8 +241,12 @@ public class ActionRunner {
 			try {
 				sequence.tick();
 			} catch (Exception e) {
-				TwitchCraftClient.LOGGER.error("Ошибка выполнения действия — последовательность отменена", e);
-				sequence.done = true;
+				TwitchCraftClient.LOGGER.error("Ошибка выполнения действия — незавершённые команды этой последовательности пропущены", e);
+				warnFailed("команда");
+				// ВАЖНО: именно finish(), а не done = true. Иначе onDone не вызывался, и вместе с
+				// ошибочной командой молча пропадали подарок за фоллов/саб/рейд, выпавшее событие
+				// награды за баллы и подтверждение активации (баллы зрителя «зависали» на Twitch).
+				sequence.finish();
 			}
 		}
 		running.removeIf(sequence -> sequence.done);
@@ -319,11 +346,18 @@ public class ActionRunner {
 					waitTicks = parseDelay(command);
 					return; // продолжим после паузы
 				}
-				if (!runCommand(command)) {
-					String root = command.split("\\s+", 2)[0];
-					if (warnedCommands.add(root)) {
-						Chat.warn("Команда /" + root + " заблокирована настройкой blockedCommands и не выполнена.");
+				try {
+					if (!runCommand(command)) {
+						String root = command.split("\\s+", 2)[0];
+						if (warnedCommands.add(root)) {
+							Chat.warn("Команда /" + root + " не выполнена: она в blockedCommands или ты вне мира.");
+						}
 					}
+				} catch (Exception e) {
+					// Одна «сломанная» команда не должна обрывать ни остальные команды действия,
+					// ни выпавший подарок/событие награды, ни подтверждение активации.
+					TwitchCraftClient.LOGGER.error("Ошибка выполнения команды '{}' — команда пропущена", command, e);
+					warnFailed("команда /" + command.split("\\s+", 2)[0]);
 				}
 			}
 		}
