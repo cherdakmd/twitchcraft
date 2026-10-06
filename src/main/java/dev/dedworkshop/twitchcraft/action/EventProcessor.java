@@ -276,19 +276,6 @@ public class EventProcessor {
 			Chat.info(hideMessage ? event.withoutMessage().describe() : event.describe());
 		}
 
-		ModConfig.Resolved resolved = config.findAction(event);
-		if (resolved == null) {
-			finish(event, addonHandled ? "выполнено (аддон)" : "нет действия");
-			countForGoals(event);
-			return;
-		}
-		ModConfig.Action action = resolved.action();
-		if (!action.enabled) {
-			finish(event, "действие выключено");
-			countForGoals(event);
-			return;
-		}
-
 		String playerName = mc.player != null ? mc.player.getName().getString() : "";
 		Map<String, String> vars = Placeholders.forPending(event, playerName, stats);
 		// Хук 1: переменные аддонов. Идут первыми, чтобы переменные самого мода имели приоритет.
@@ -305,9 +292,22 @@ public class EventProcessor {
 			vars.putAll(mod.streamStatus().placeholders()); // {stream_time} {viewers} {live}
 		}
 
-		// Хуки 2–4: действия аддонов и привязка награды по id. Выполняются до действий из конфига
-		// и независимо от них, но своими кулдаунами и правами аддон управляет сам (в своём триггере).
+		// Хуки 2–4: действия аддонов и привязка награды по id. Работают независимо от того, настроено ли
+		// действие в конфиге; кулдаунами и правами аддон управляет сам (условием своего триггера).
 		boolean addonHandled = runAddonHooks(event, vars);
+
+		ModConfig.Resolved resolved = config.findAction(event);
+		if (resolved == null) {
+			finish(event, addonHandled ? "выполнено (аддон)" : "нет действия");
+			countForGoals(event);
+			return;
+		}
+		ModConfig.Action action = resolved.action();
+		if (!action.enabled) {
+			finish(event, "действие выключено");
+			countForGoals(event);
+			return;
+		}
 
 		// Права (только чат-команды; тестовые события — без проверки)
 		if (event.type() == TwitchEvent.Type.CHAT_COMMAND && !event.synthetic()) {

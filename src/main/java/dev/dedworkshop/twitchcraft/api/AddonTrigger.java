@@ -159,4 +159,8 @@ public final class AddonTrigger {
 	private static Map<String, String> params(String key, int value) {
 		return Map.of(key, String.valueOf(value));
 	}
+
+	private static Map<String, String> params(String key, String value) {
+		return Map.of(key, value == null ? "" : value);
+	}
 }
