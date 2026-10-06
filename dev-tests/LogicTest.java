@@ -1149,11 +1149,20 @@ public class LogicTest {
                 p6runner.tick(p6mc);
             }
             Set<String> p6allBad = new HashSet<>();
+            Map<String, String> p6vars = Placeholders.of(p6ev, "Steve", new SessionStats());
             for (ModConfig.Action a : p6bad) {
                 p6allBad.addAll(a.commands);
             }
-            check("runner: reward ran the picked ☠ entry's commands (" + p6exec.size() + " cmds)", p6done[0] == 1 && !p6exec.isEmpty()
-                    && p6exec.stream().filter(c -> !c.startsWith("delay")).allMatch(p6allBad::contains));
+            // Команды из ценника содержат {user}/{sum}/… — ActionRunner подставляет их перед выполнением,
+            // поэтому сравниваем и сырой вид, и с подстановкой, и по началу строки до первого плейсхолдера
+            // (иначе тест «мигает» в зависимости от того, какая запись выпала).
+            java.util.function.Predicate<String> p6known = c -> p6allBad.stream().anyMatch(raw ->
+                    raw.equals(c) || Placeholders.apply(raw, p6vars).equals(c)
+                            || (raw.indexOf('{') > 0 && c.startsWith(raw.substring(0, raw.indexOf('{')))));
+            List<String> p6unknown = p6exec.stream().filter(c -> !c.startsWith("delay")).filter(c -> !p6known.test(c)).toList();
+            check("runner: reward ran the picked ☠ entry's commands (" + p6exec.size() + " cmds"
+                    + (p6unknown.isEmpty() ? "" : ", лишние: " + p6unknown) + ")", p6done[0] == 1 && !p6exec.isEmpty()
+                    && p6unknown.isEmpty());
             check("runner: reply has the picked name, no raw placeholders: " + p6replies, p6replies.size() == 1 && p6replies.get(0).startsWith("Viewer, выпало: ☠ ")
                     && !p6replies.get(0).contains("{picked}") && p6replies.get(0).length() > "Viewer, выпало: ☠ ".length());
             check("Placeholders: {picked}/{picked_text} default to empty for ordinary events",
