@@ -53,8 +53,9 @@ javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out AddonHarness.java
 run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$MC:$JARS" dev.dedworkshop.twitchcraft.api.AddonHarness
 
 echo "== BossHarness (боссы аддона «Артефакты»: каталог 14 боссов, 11 навыков) == ($(now))"
+# Класс лежит в пакете аддона — запускаем по полному имени
 javac -encoding UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" -d out BossHarness.java
-run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" BossHarness
+run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" dev.dedworkshop.twitchcraft.artifacts.BossHarness
 
 echo "== EventSubHarness (фейковый Twitch на 127.0.0.1:8080/8081, ~80 секунд) == ($(now))"
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java
