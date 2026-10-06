@@ -34,8 +34,7 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - `twitchcraft-1.7.1.jar` — скачай со страницы **[Releases](https://github.com/cherdakmd/twitchcraft/releases/latest)**
-     (тот же файл лежит в папке `release/` репозитория)
+   - [`twitchcraft-1.7.1.jar`](release/twitchcraft-1.7.1.jar) — готовый JAR из папки `release/`; опубликованные версии — на странице **[Releases](https://github.com/cherdakmd/twitchcraft/releases)**
 4. **По желанию** — [Mod Menu](https://modrinth.com/mod/modmenu/versions?g=26.3) (файл `modmenu-21.0.0.jar`) в ту же папку:
    тогда в главном меню появится кнопка **Моды**, а у TwitchCraft — кнопка **Настроить** с полным редактором.
    Без Mod Menu тот же экран открывается командой `/twitch config` из любого мира.
