@@ -6,6 +6,8 @@
 #    рост проклятия и разрушение на 100 %, лимит артефактов, выдача за битсы/донаты/подписки/рейды/награды/боссов, команды give/эффектов/удаления.
 # 2а) Логические тесты хуков API аддонов (AddonHarness): переменные (хук 1), действия «триггер + элементы» (хук 2),
 #    привязка награды по id с вводом зрителя (хук 3), кастомные триггеры v0…v3 (хук 4), лимиты и изоляция ошибок.
+# 2б) Логические тесты боссов (BossHarness): каталог 14 боссов, 11 навыков (команды, координаты, селекторы),
+#    настройки боссов и их нормализация.
 # 3) Интеграционные тесты (34) против фейкового Twitch (python3 + pip install websockets): EventSub, Helix, метки и клипы.
 # 4) Интеграционные тесты (58) против фейковых DonationAlerts / DonatePay (OAuth URL/invalid_client, продление токенов Centrifugo, unsub и догонка донатов).
 # 5) Интеграционные тесты (36) против фейкового VK Video Live (OAuth code, DevAPI, Centrifugo v2: вход, события, награды, чат, 401→refresh, обрыв и догонка).
@@ -50,6 +52,10 @@ echo "== AddonHarness (хуки API аддонов: переменные, дей
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out AddonHarness.java
 run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$MC:$JARS" dev.dedworkshop.twitchcraft.api.AddonHarness
 
+echo "== BossHarness (боссы аддона «Артефакты»: каталог 14 боссов, 11 навыков) == ($(now))"
+javac -encoding UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" -d out BossHarness.java
+run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" BossHarness
+
 echo "== EventSubHarness (фейковый Twitch на 127.0.0.1:8080/8081, ~80 секунд) == ($(now))"
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java
 python3 mock_twitch.py > out/mock.log 2>&1 &
@@ -79,4 +85,4 @@ run_java -Dtwitchcraft.vkApiUrl=http://127.0.0.1:8085/v1 -Dtwitchcraft.vkAuthUrl
      -cp "out:$CLASSES:$MC:$JARS" VkHarness || { kill $MOCK; exit 1; }
 kill $MOCK
 echo
-echo "ALL GREEN: LogicTest + ArtifactsHarness + AddonHarness + EventSubHarness + DonationsHarness + VkHarness ($(now))"
+echo "ALL GREEN: LogicTest + ArtifactsHarness + BossHarness + AddonHarness + EventSubHarness + DonationsHarness + VkHarness ($(now))"

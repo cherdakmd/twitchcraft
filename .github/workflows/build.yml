@@ -53,7 +53,7 @@ jobs:
           unzip -l "$ADDON_JAR" | grep -q "ArtifactsAddon.class"
           echo "Собраны: $MOD_JAR и $ADDON_JAR (точка входа twitchcraft-addon на месте)."
 
-      - name: Автотесты (LogicTest + аддон «Артефакты» + хуки API аддонов + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
+      - name: Автотесты (LogicTest + аддон «Артефакты» с боссами + хуки API аддонов + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
         id: tests
         # Обычный прогон — около 3 минут; 15 минут хватает с запасом и не даёт
         # зависшему фейковому серверу тянуть весь job до общего лимита.

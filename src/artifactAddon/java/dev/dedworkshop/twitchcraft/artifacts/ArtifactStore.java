@@ -43,6 +43,21 @@ public final class ArtifactStore {
 	/** По зрителям: кто «выбил» больше всех. */
 	public Map<String, Integer> byViewer = new LinkedHashMap<>();
 
+	// ---------- Боссы (BossManager): расписание и статистика ----------
+	/** Сколько боссов вызвано и побеждено. */
+	public long bossSpawned = 0;
+	public long bossDefeats = 0;
+	/** Когда вызывать следующего босса (мс) и кого запланировали. */
+	public long bossNextAt = 0;
+	public String bossPlannedId = "";
+	/** Кто сейчас вызван (пусто — никто) и где он появился. */
+	public String bossActiveId = "";
+	public String bossActiveName = "";
+	public double bossX = 0;
+	public double bossY = 0;
+	public double bossZ = 0;
+	public long bossSpawnAt = 0;
+
 	private transient Path path;
 
 	public static ArtifactStore load(Path path) {

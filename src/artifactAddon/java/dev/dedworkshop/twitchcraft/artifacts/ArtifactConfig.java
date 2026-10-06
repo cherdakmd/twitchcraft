@@ -36,6 +36,9 @@ public final class ArtifactConfig {
 	/** Сколько артефактов может лежать в инвентаре одновременно (как max-artifacts на сервере). */
 	public int maxArtifacts = 5;
 
+	/** Мировые боссы: расписание, навыки, награда за победу (раздел «Боссы» в MANUAL). */
+	public Bosses bosses = new Bosses();
+
 	/** Шанс, что артефакт окажется именным (Перо Феникса, Клинок Бездны…), проценты. */
 	public double namedArtifactChance = 20.0;
 
@@ -108,6 +111,68 @@ public final class ArtifactConfig {
 		public String broken = "§c☠ Артефакт «{name}» поглотило проклятие ({percent}) — он рассыпался в пыль!";
 		public String full = "§eАртефактов уже {max} — «{name}» ускользнул. Используй или разрушь один из них.";
 		public String inactive = "§cНе удалось убрать «{name}» из инвентаря — выброси его руками, он больше не действует.";
+		public String bossAnnounce = "§5§lМИРОВОЕ СОБЫТИЕ!§r §fДревнее зло пробуждается: §d{boss}§f появится через §a{minutes} мин§f. "
+				+ "Координаты: X: §c{x}§f Z: §c{z}";
+		public String bossSpawn = "§d§l⚡ БОСС ПОЯВИЛСЯ!§r §f{boss}§r ждёт сражения (X {x} Z {z}, {health} HP). Сражение началось!";
+		public String bossDefeat = "§a☠ {boss}§r повержен!§f Победитель: §f{killer}";
+		/** Если убийцу определить не удалось (например, босс сгорел или упал). */
+		public String bossNoKiller = "неизвестный герой";
+	}
+
+	/**
+	 * Настройки боссов — перенос {@code bosses} из серверного {@code config.yml}
+	 * (интервал 6 часов, предупреждение за 15 минут, радиус 5000, шанс артефакта 50 %).
+	 * Шаблоны команд вынесены в конфиг: если версия игры поменяет синтаксис {@code summon}
+	 * или названия атрибутов, правь конфиг, а не код.
+	 */
+	public static final class Bosses {
+		public static final String DEFAULT_SUMMON =
+				"summon {type} {x} {y} {z} {CustomName:'{\"text\":\"{name}\"}',CustomNameVisible:1b,PersistenceRequired:1b}";
+
+		public boolean enabled = true;
+		/** Как часто вызывать босса (секунды; 21600 = 6 часов, как на сервере). */
+		public long spawnIntervalSeconds = 21600;
+		/** За сколько секунд предупреждать в чатах (900 = 15 минут). */
+		public long announceBeforeSeconds = 900;
+		/** Радиус случайной точки в мире (если спавн не рядом с игроком). */
+		public int radius = 5000;
+		/** Вызывать босса рядом с игроком (иначе — в случайной точке радиуса). */
+		public boolean spawnNearPlayer = true;
+		/** На каком расстоянии от игрока появляется босс. */
+		public double distanceFromPlayer = 40;
+		/** Шанс навыка при проверке, проценты (на сервере 20). */
+		public int skillChancePercent = 20;
+		/** Пауза между навыками, секунды (на сервере 5). */
+		public int skillCooldownSeconds = 5;
+		/** С какого расстояния босс «замечает» игрока и применяет навыки, блоки. */
+		public int skillRange = 24;
+		/** Показывать полосу босса (ванильный /bossbar). */
+		public boolean bossBar = true;
+		/** Шанс артефакта за победу над боссом, проценты. */
+		public int artifactChancePercent = 50;
+		/** Идентификаторы боссов, которых не нужно вызывать (например, ["slime_king"]). */
+		public List<String> disabled = new ArrayList<>();
+		/** Шаблон вызова босса: {type} {name} {x} {y} {z} {health} {damage} {speed}. */
+		public String summonCommand = DEFAULT_SUMMON;
+		public Attributes attributes = new Attributes();
+		public Texts texts = new Texts();
+
+		/** Настройки атрибутов босса: команда {@code /attribute … base set N}. */
+		public static final class Attributes {
+			public boolean enabled = true;
+			public String maxHealth = "minecraft:max_health";
+			public String attackDamage = "minecraft:attack_damage";
+			public String movementSpeed = "minecraft:movement_speed";
+		}
+
+		/** Тексты боссов: {boss} {x} {z} {minutes} {health} {killer}. */
+		public static final class Texts {
+			public String announce = "§5§lМИРОВОЕ СОБЫТИЕ!§r §fДревнее зло пробуждается: §d{boss}§f появится через §a{minutes} мин§f. "
+					+ "Координаты: X: §c{x}§f Z: §c{z}";
+			public String spawn = "§d§l⚡ БОСС ПОЯВИЛСЯ!§r §f{boss}§r ждёт сражения (X {x} Z {z}, {health} HP).";
+			public String defeat = "§a☠ {boss}§r повержен! §fПобедитель: §f{killer}";
+			public String noKiller = "неизвестный герой";
+		}
 	}
 
 	/** Значения по умолчанию (создать файл). */
@@ -190,6 +255,21 @@ public final class ArtifactConfig {
 		}
 		effectRefreshSeconds = clamp(effectRefreshSeconds, 5, 600);
 		if (texts == null) texts = new Texts();
+		if (bosses == null) bosses = new Bosses();
+		bosses.spawnIntervalSeconds = (long) clamp(bosses.spawnIntervalSeconds, 60, 24 * 3600L);
+		bosses.announceBeforeSeconds = (long) clamp(bosses.announceBeforeSeconds, 0, bosses.spawnIntervalSeconds);
+		bosses.radius = clamp(bosses.radius, 16, 3_000_000);
+		bosses.distanceFromPlayer = clamp(bosses.distanceFromPlayer, 8, 256);
+		bosses.skillChancePercent = clamp(bosses.skillChancePercent, 0, 100);
+		bosses.skillCooldownSeconds = clamp(bosses.skillCooldownSeconds, 1, 600);
+		bosses.skillRange = clamp(bosses.skillRange, 4, 256);
+		bosses.artifactChancePercent = clamp(bosses.artifactChancePercent, 0, 100);
+		if (bosses.disabled == null) bosses.disabled = new ArrayList<>();
+		if (bosses.attributes == null) bosses.attributes = new Attributes();
+		if (bosses.texts == null) bosses.texts = new Texts();
+		if (bosses.summonCommand == null || bosses.summonCommand.isBlank()) {
+			bosses.summonCommand = Bosses.DEFAULT_SUMMON;
+		}
 	}
 
 	/** Шансы для {@link ArtifactRarity#roll(java.util.Random, double[])} в порядке значений перечисления. */

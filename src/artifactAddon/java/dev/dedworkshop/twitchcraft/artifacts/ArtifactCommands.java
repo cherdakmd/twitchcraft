@@ -22,6 +22,7 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
  *   /artifact stats               — статистика: выбито, разрушено, топ зрителей;
  *   /artifact curse <id> <процент>— поставить проклятие (для проверки роста и разрушения);
  *   /artifact break <id>          — разрушить артефакт сейчас;
+ *   /artifact boss [now|stop|list|<id>] — мировые боссы: статус, вызов, список;
  *   /artifact reload              — перечитать config/twitchcraft-artifacts.json.
  */
 public final class ArtifactCommands {
@@ -30,6 +31,16 @@ public final class ArtifactCommands {
 		for (ArtifactRarity rarity : ArtifactRarity.values()) {
 			if (rarity.id.startsWith(remaining)) {
 				builder.suggest(rarity.id);
+			}
+		}
+		return builder.buildFuture();
+	};
+
+	private static final SuggestionProvider<FabricClientCommandSource> BOSS_IDS = (ctx, builder) -> {
+		String remaining = builder.getRemainingLowerCase();
+		for (BossCatalog.Boss boss : BossCatalog.BOSSES) {
+			if (boss.id().startsWith(remaining)) {
+				builder.suggest(boss.id());
 			}
 		}
 		return builder.buildFuture();
@@ -69,6 +80,13 @@ public final class ArtifactCommands {
 				.then(literal("break")
 						.then(argument("id", StringArgumentType.word())
 								.executes(ctx -> breakArtifact(addon, StringArgumentType.getString(ctx, "id")))))
+				.then(literal("boss")
+						.executes(ctx -> print(addon.bosses().statusLines()))
+						.then(literal("now").executes(ctx -> bossNow(addon)))
+						.then(literal("stop").executes(ctx -> bossStop(addon)))
+						.then(literal("list").executes(ctx -> print(addon.bosses().listLines())))
+						.then(argument("id", StringArgumentType.word()).suggests(BOSS_IDS)
+								.executes(ctx -> bossSpawn(addon, StringArgumentType.getString(ctx, "id")))))
 				.then(literal("reload").executes(ctx -> reload(addon)));
 	}
 
@@ -112,6 +130,40 @@ public final class ArtifactCommands {
 			return 0;
 		}
 		addon.breakArtifact(artifact);
+		return 1;
+	}
+
+	private static int bossNow(ArtifactsAddon addon) {
+		if (addon.bosses().alive()) {
+			ArtifactChat.warn("Босс уже вызван: сначала убери его — §e/artifact boss stop");
+			return 0;
+		}
+		if (addon.bosses().spawnNow(net.minecraft.client.Minecraft.getInstance(), true)) {
+			ArtifactChat.success("Босс вызван — следующий по расписанию.");
+			return 1;
+		}
+		ArtifactChat.error("Не удалось вызвать босса: проверь, что боссы включены в настройках аддона.");
+		return 0;
+	}
+
+	private static int bossSpawn(ArtifactsAddon addon, String id) {
+		if (addon.bosses().alive()) {
+			ArtifactChat.warn("Босс уже вызван: сначала убери его — §e/artifact boss stop");
+			return 0;
+		}
+		if (addon.bosses().spawn(id, net.minecraft.client.Minecraft.getInstance())) {
+			ArtifactChat.success("Босс «" + BossCatalog.nameOf(id) + "» вызван.");
+			return 1;
+		}
+		ArtifactChat.error("Неизвестный босс «" + id + "». Список: §e/artifact boss list");
+		return 0;
+	}
+
+	private static int bossStop(ArtifactsAddon addon) {
+		if (!addon.bosses().stop(false)) {
+			ArtifactChat.warn("Сейчас нет вызванного босса.");
+			return 0;
+		}
 		return 1;
 	}
 

@@ -50,6 +50,8 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 	private ArtifactStore store;
 	private final ArtifactDrops drops = new ArtifactDrops();
 	private final Random random = new Random();
+	/** Боссы: расписание, навыки, победа (перенос BossManager серверного аддона). */
+	private final BossManager bosses = new BossManager(this);
 
 	/** Награды, привязанные к аддону по id (хук 3): их обрабатывает binding, а не общие правила. */
 	private final Set<String> boundRewardIds = new LinkedHashSet<>();
@@ -89,6 +91,8 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		this.config = ArtifactConfig.load(dir);
 		this.store = ArtifactStore.load(dir.resolve(ArtifactStore.FILE_NAME));
 		ArtifactCommands.register(this);
+		bosses.register();
+		restoreBossState();
 		registerHooks(context);
 		bindRewards(context);
 		context.logger().info("Аддон «Артефакты» {}: загружено (артефактов {}, выбито {}, разрушено {}, лимит {}, проклятие +1 % за {} мин)",
@@ -111,6 +115,11 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 
 	public Random random() {
 		return random;
+	}
+
+	/** Боссы: расписание, навыки, победа (команды {@code /artifact boss}). */
+	public BossManager bosses() {
+		return bosses;
 	}
 
 	/** Перечитать свой файл настроек. */
@@ -218,6 +227,7 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 				lastEffectsAt = now;
 				applyEffects();
 			}
+			bosses.tick(client);
 			if (now - lastSaveAt >= SAVE_INTERVAL_MS) {
 				lastSaveAt = now;
 				store.save();
@@ -248,6 +258,24 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		}
 	}
 
+	/**
+	 * После перезапуска игры вызванного босса в мире уже нет: снимаем запись, чтобы
+	 * не ждать победы над тем, кого нет, и не считать его вызов состоявшимся.
+	 */
+	private void restoreBossState() {
+		if (store.bossActiveId != null && !store.bossActiveId.isBlank()) {
+			context.logger().info("Аддон «Артефакты»: босс «{}» остался с прошлого запуска — начинаю расписание заново",
+					store.bossActiveName);
+			store.bossActiveId = "";
+			store.bossActiveName = "";
+		}
+		if (store.bossNextAt <= 0) {
+			long interval = config.bosses == null ? 21600 : config.bosses.spawnIntervalSeconds;
+			store.bossNextAt = System.currentTimeMillis() + Math.max(60, interval) * 1000L;
+		}
+		store.save();
+	}
+
 	// ---------- Хуки API аддонов ----------
 
 	/**
@@ -266,6 +294,15 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		context.registerVariable("artifact_destroyed", event -> String.valueOf(store.destroyed));
 		context.registerVariable("artifact_last", event -> lastArtifactName);
 		context.registerVariable("artifact_limit", event -> String.valueOf(config.maxArtifacts));
+		// Боссы: видно в чат-командах, таймерах и оверлее
+		context.registerVariable("boss_name", event -> {
+			BossCatalog.Boss boss = bosses.activeBoss();
+			return boss == null ? "" : boss.name();
+		});
+		context.registerVariable("boss_alive", event -> bosses.alive() ? "да" : "нет");
+		context.registerVariable("boss_next", event -> bosses.nextText());
+		context.registerVariable("boss_defeats", event -> String.valueOf(store.bossDefeats));
+		context.registerVariable("boss_spawned", event -> String.valueOf(store.bossSpawned));
 
 		// Хук 2: действие исполняет мод — справка по команде чата
 		context.registerAction(AddonAction.of("artifacts_help", "Артефакты: справка", AddonTrigger.chatCommand("артефакты"))
@@ -283,6 +320,18 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 						.message("§dПроверка аддона «Артефакты»§r: в запасе §f{artifact_count}§r, выбито §f{artifact_total}§r, "
 								+ "разрушено §f{artifact_destroyed}§r, последний — §f{artifact_last}§r.")
 						.build());
+		context.registerCustomTrigger(2, "Босс появился", "Мировое событие: босс вышел в мир",
+				AddonTrigger.game(TwitchEvent.GAME_BOSS),
+				AddonElements.builder()
+						.message("§d§l⚡ Мировое событие!§r §fБосс §d{boss_name}§f вышел на охоту — координаты в чате!")
+						.sound("minecraft:entity.ender_dragon.growl", 1.0f, 1.0f)
+						.build());
+		context.registerCustomTrigger(3, "Босс повержен", "Зрителям — итог сражения и статистика",
+				AddonTrigger.game(TwitchEvent.GAME_BOSS),
+				AddonElements.builder()
+						.message("§a☠ Сражение окончено!§f Побед над боссами: §f{boss_defeats}§f, "
+								+ "следующий босс §f{boss_next}§f. Артефактов выбито: §f{artifact_total}§f.")
+						.build());
 		context.registerCustomTrigger(1, "Рейд: приветствие", "Рейд от 25 зрителей",
 				AddonTrigger.raid(25),
 				AddonElements.builder()
@@ -290,7 +339,14 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 						.sound("minecraft:ui.toast.challenge_complete", 1.0f, 1.0f)
 						.build());
 
-		context.logger().info("Аддон «Артефакты»: зарегистрировано переменных 5, действий 1, кастомных триггеров 2 из 4");
+		context.registerAction(AddonAction.of("bosses_help", "Боссы: справка", AddonTrigger.chatCommand("босс", "боссы"))
+				.elements(AddonElements.builder()
+						.message("§dБоссы§r: сейчас §f{boss_alive}§r" + " — §f{boss_name}§r. Следующий: §f{boss_next}§r. "
+								+ "Побед: §f{boss_defeats}§r, вызовов: §f{boss_spawned}§r.")
+						.build())
+				.build());
+
+		context.logger().info("Аддон «Артефакты»: зарегистрировано переменных 10, действий 2, кастомных триггеров 4 из 4");
 	}
 
 	/**
