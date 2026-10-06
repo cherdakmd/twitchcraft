@@ -34,12 +34,14 @@ jobs:
 
       - name: Сборка (./gradlew build)
         id: build
+        timeout-minutes: 15
         run: |
           set -o pipefail
           chmod +x gradlew
           ./gradlew build --no-daemon 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Проверка jar-файлов (мод + аддон «Артефакты»)
+        timeout-minutes: 5
         run: |
           set -e
           ls -l build/libs/*.jar
@@ -53,6 +55,9 @@ jobs:
 
       - name: Автотесты (LogicTest + аддон «Артефакты» + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
         id: tests
+        # Обычный прогон — около 3 минут; 15 минут хватает с запасом и не даёт
+        # зависшему фейковому серверу тянуть весь job до общего лимита.
+        timeout-minutes: 15
         run: |
           set -o pipefail
           python3 -m pip install --quiet websockets || python3 -m pip install --quiet --break-system-packages websockets
