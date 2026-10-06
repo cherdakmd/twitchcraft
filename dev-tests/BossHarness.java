@@ -168,6 +168,7 @@ public class BossHarness {
 		check("шанс навыка 20 % и кулдаун 5 с (как на сервере)", settings.skillChancePercent == 20
 				&& settings.skillCooldownSeconds == 5);
 		check("шанс артефакта за победу 50 %", settings.artifactChancePercent == 50);
+		check("лимит «вечного» боя — 30 минут", settings.maxAliveSeconds == 1800);
 		check("вызов рядом с игроком по умолчанию", settings.spawnNearPlayer && settings.distanceFromPlayer == 40);
 		check("атрибуты включены и с новыми id", settings.attributes.enabled
 				&& settings.attributes.maxHealth.equals("minecraft:max_health")

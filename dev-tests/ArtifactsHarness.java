@@ -369,13 +369,13 @@ public class ArtifactsHarness {
 						&& burntStore.byId("b0rn") == null);
 		check("статистика выбитого сохраняется, даже когда запись убрана",
 				burntStore.generated == 1 && burntStore.byRarity.get("common") == 1);
-		Artifact broken = new Artifact();
-		broken.id = "c0rr";
-		broken.rarity = ArtifactRarity.COMMON.id;
-		broken.curse = "GREED";
-		broken.destroyed = true; // рассыпался от проклятия — запись остаётся для истории
-		broken.present = false;
-		burntStore.add(broken, random);
+		Artifact cursedRecord = new Artifact();
+		cursedRecord.id = "c0rr";
+		cursedRecord.rarity = ArtifactRarity.COMMON.id;
+		cursedRecord.curse = "GREED";
+		cursedRecord.destroyed = true; // рассыпался от проклятия — запись остаётся для истории
+		cursedRecord.present = false;
+		burntStore.add(cursedRecord, random);
 		check("разрушенный проклятием артефакт не удаляется из записей",
 				burntStore.forgetBurntWithoutItem() == 0 && burntStore.byId("c0rr") != null);
 		Artifact held = new Artifact();
