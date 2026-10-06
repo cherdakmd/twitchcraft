@@ -577,6 +577,67 @@ public class LogicTest {
                 System.out.println("     !! " + e);
             }
             check("throwing command: tick survives, other sequences complete", !threw && tBad.runningCount() == 0 && executed.contains("give @s diamond"));
+
+            // Регрессия «после фоллова награда не выдалась»: ошибка внутри одной команды отменяла всю
+            // последовательность — пропадали и остальные команды, и выпавший подарок, и подтверждение
+            // активации (баллы зрителя «зависали» на Twitch). Теперь ошибочная команда пропускается.
+            executed.clear();
+            done[0] = 0;
+            ModConfig.Action tBoomLoot = new ModConfig.Action();
+            tBoomLoot.commands = new ArrayList<>(List.of("boom now", "say after boom"));
+            tBoomLoot.loot = new ArrayList<>(List.of(ModConfig.Action.lootEntry("алмаз", 1, "give @s diamond")));
+            ActionRunner tBoomRunner = new ActionRunner(null) {
+                @Override
+                protected boolean runCommand(String command) {
+                    if (command.startsWith("boom")) throw new IllegalStateException("test failure");
+                    executed.add(command);
+                    return true;
+                }
+            };
+            tBoomRunner.run(fe, tBoomLoot, fv, () -> done[0]++);
+            threw = false;
+            try {
+                for (int t = 0; t < 20 && tBoomRunner.runningCount() > 0; t++) {
+                    tBoomRunner.tick(mc);
+                }
+            } catch (Exception e) {
+                threw = true;
+                System.out.println("     !! " + e);
+            }
+            check("throwing command: the rest of the action still runs", !threw && executed.contains("say after boom"));
+            check("throwing command: loot is still issued", executed.contains("give @s diamond"));
+            check("throwing command: reward confirmed once (onDone), queue empty", done[0] == 1 && tBoomRunner.runningCount() == 0);
+            check("throwing command: player is warned in chat", dev.dedworkshop.twitchcraft.util.Chat.lastText().contains("Не выполнено"));
+
+            // Ошибка при показе выпавшей записи (заголовок/звук/тост/ответ) не отменяет сам подарок.
+            // mod == null, поэтому mod.reply внутри runLoot бросает NPE — как любая ошибка эффектов.
+            executed.clear();
+            done[0] = 0;
+            ModConfig.Action tBadEffects = new ModConfig.Action();
+            tBadEffects.commands = new ArrayList<>(List.of("say gift"));
+            ModConfig.Action badLoot = ModConfig.Action.lootEntry("золотое яблоко", 1, "give @s golden_apple");
+            badLoot.reply = "Держи {loot}!";
+            tBadEffects.loot = new ArrayList<>(List.of(badLoot));
+            ActionRunner tEffectsRunner = new ActionRunner(null) {
+                @Override
+                protected boolean runCommand(String command) {
+                    executed.add(command);
+                    return true;
+                }
+            };
+            tEffectsRunner.run(fe, tBadEffects, fv, () -> done[0]++);
+            threw = false;
+            try {
+                for (int t = 0; t < 20 && tEffectsRunner.runningCount() > 0; t++) {
+                    tEffectsRunner.tick(mc);
+                }
+            } catch (Exception e) {
+                threw = true;
+                System.out.println("     !! " + e);
+            }
+            check("loot effects failed: main commands ran", !threw && executed.contains("say gift"));
+            check("loot effects failed: loot still given, onDone once, queue empty",
+                    executed.contains("give @s golden_apple") && done[0] == 1 && tEffectsRunner.runningCount() == 0);
             net.minecraft.client.Minecraft.INSTANCE = null;
         }
 

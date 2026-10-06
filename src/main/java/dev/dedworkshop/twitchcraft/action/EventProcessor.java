@@ -274,6 +274,11 @@ public class EventProcessor {
 
 		ModConfig.Resolved resolved = config.findAction(event);
 		if (resolved == null) {
+			if (event.type() == TwitchEvent.Type.REWARD && !event.synthetic() && config.showEventsInChat) {
+				// Зритель потратил баллы, а выполнять нечего: без этой подсказки выглядит как «мод ничего не сделал».
+				Chat.warn("Для награды «" + event.reward() + "» нет действия: добавь запись с таким названием в раздел rewards "
+						+ "(или «*» для всех остальных) — /twitch config → Награды за баллы.");
+			}
 			finish(event, "нет действия");
 			countForGoals(event);
 			return;

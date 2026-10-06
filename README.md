@@ -34,7 +34,7 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - `twitchcraft-1.7.0.jar` — скачай со страницы **[Releases](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+   - `twitchcraft-1.7.2.jar` — скачай со страницы **[Releases](https://github.com/cherdakmd/twitchcraft/releases/latest)**
      (тот же файл лежит в папке `release/` репозитория)
 4. **По желанию** — [Mod Menu](https://modrinth.com/mod/modmenu/versions?g=26.3) (файл `modmenu-21.0.0.jar`) в ту же папку:
    тогда в главном меню появится кнопка **Моды**, а у TwitchCraft — кнопка **Настроить** с полным редактором.
@@ -725,7 +725,7 @@ gradlew.bat build
 ./gradlew build
 ```
 
-Готовый мод появится в `build/libs/twitchcraft-1.7.0.jar`.
+Готовый мод появится в `build/libs/twitchcraft-1.7.2.jar`.
 Первая сборка качает Minecraft и зависимости (~600 МБ) — это нормально.
 
 **IntelliJ IDEA** (Community бесплатна): *File → Open* → папка проекта → дождаться синхронизации Gradle.
@@ -820,7 +820,7 @@ twitchcraft/
 - Нужна Java 25; `ResourceLocation` переименован в `Identifier`; клиентские команды — класс `ClientCommands`;
   клавиши — `KeyMappingHelper`, HUD — `HudElementRegistry`
 
-В папке `dev-tests/` лежат автотесты (`run_tests.sh`): 339 проверок логики (разбор событий, конфиг и миграция,
+В папке `dev-tests/` лежат автотесты (`run_tests.sh`): 345 проверок логики (разбор событий, конфиг и миграция,
 плейсхолдеры, кулдауны, повторы, модули, таблицы лута, цели, очередь выполнения действий, разбор донатов, курсор DonatePay, callback-сервер,
 случайные награды «Пакость»/«Подарок», разбор событий VK, счётчики событий игры, разбор достижений и причин смерти, таймеры чата на фальшивых часах,
 решения о клипах/метках), 34 интеграционные проверки против «фейкового Twitch» (`mock_twitch.py`): подписки, чат,
