@@ -824,7 +824,7 @@ twitchcraft/
 плейсхолдеры, кулдауны, повторы, модули, таблицы лута, цели, очередь выполнения действий, разбор донатов, курсор DonatePay, callback-сервер,
 случайные награды «Пакость»/«Подарок», разбор событий VK, счётчики событий игры, разбор достижений и причин смерти, таймеры чата на фальшивых часах,
 решения о клипах/метках), 34 интеграционные проверки против «фейкового Twitch» (`mock_twitch.py`): подписки, чат,
-переподключение, watchdog, подтверждение/возврат наград, состояние стрима, метки и клипы (включая 404 вне эфира и ожидание готовности клипа), 50 проверок против «фейковых DonationAlerts и DonatePay» (`mock_donations.py`): вход через браузер,
+переподключение, watchdog, подтверждение/возврат наград, состояние стрима, метки и клипы (включая 404 вне эфира и ожидание готовности клипа), 58 проверок против «фейковых DonationAlerts и DonatePay» (`mock_donations.py`): OAuth URL/invalid_client, вход через браузер,
 Centrifugo, дедупликация, переподключение, отзыв токена, проверка ключа, посев курсора, ожидание платежей, модули, и 36 проверок против «фейкового VK Video Live»
 (`mock_vk.py`): вход по коду через localhost, канал и токены WebSocket, события чата / наград / фолловов с дедупликацией, подтверждение и отклонение запросов,
 отправка в чат с повтором, продление токенов (WebSocket и 401 → refresh), обрыв соединения с догонкой запросов, создание наград, выход.
@@ -852,8 +852,9 @@ Mod Menu подключён как `compileOnly`-зависимость: мод 
 | В Mod Menu нет кнопки «Настроить» | Проверь, что стоит Mod Menu **21.x для 26.3**. Без Mod Menu используй `/twitch config` |
 | Цели не растут | Модуль `goals` включён? (`/twitch modules`). Тестовые события и повторы F9 в цели не засчитываются — проверяй через `/twitch goals add <цель> 1` |
 | Подарок не выдаётся | В таблице лута все записи выключены или с весом 0; смотри `/twitch history` и `showCommandOutput: true` для ответа команды `give` |
-| DonationAlerts: «Не указан Client ID» | `/twitch donations da client <ID>` — ID приложения с donationalerts.com/application/clients |
-| DonationAlerts: браузер пишет «redirect_uri не совпадает» | В приложении DonationAlerts Redirect URI должен быть ровно `http://localhost:8631/da` (порт — как в `donations.callbackPort`) |
+| DonationAlerts: «Не указан Client ID» | `/twitch donations da client <ID>` — числовой ID приложения с donationalerts.com/application/clients, не Client Secret |
+| DonationAlerts: `invalid_client` / `Client authentication failed` сразу в браузере | Проверь числовой Client ID и точный Redirect URI из экрана «Донаты» (`http://localhost:<callbackPort>/da`; по умолчанию `http://localhost:8631/da`). Секрет для используемого implicit OAuth не нужен. Если значения верны, проверь, что приложение не удалено/не отключено в DonationAlerts |
+| DonationAlerts: браузер пишет «redirect_uri не совпадает» | В приложении DonationAlerts Redirect URI должен быть ровно `http://localhost:<порт>/da` (порт — как в `donations.callbackPort`) |
 | DonationAlerts: «Не удалось открыть локальный порт» | Порт 8631 занят другой программой — смени `donations.callbackPort` (и Redirect URI в приложении) |
 | DonationAlerts: «токен недействителен» | `/twitch donations da login` ещё раз (токен отозван или приложение удалено) |
 | DonatePay: «не принял ключ» | Ключ скопирован не целиком или перевыпущен: donatepay.ru → Настройки → API → `/twitch donations dp key <ключ>` |

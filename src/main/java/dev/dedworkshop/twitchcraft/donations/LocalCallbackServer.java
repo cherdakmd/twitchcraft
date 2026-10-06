@@ -33,12 +33,13 @@ public final class LocalCallbackServer implements Closeable {
 	private final String service;
 	private final String retryHint;
 	private final Consumer<Map<String, String>> onToken;
+	private final Consumer<Map<String, String>> onError;
 	private volatile ServerSocket server;
 	private volatile boolean closed;
 	private boolean consumed;
 
 	public LocalCallbackServer(int port, String path, Consumer<Map<String, String>> onToken) {
-		this(port, path, null, onToken);
+		this(port, path, null, onToken, params -> { });
 	}
 
 	/**
@@ -47,7 +48,12 @@ public final class LocalCallbackServer implements Closeable {
 	 *                      токена чужой страницей, login-CSRF). {@code null} — не проверять.
 	 */
 	public LocalCallbackServer(int port, String path, String expectedState, Consumer<Map<String, String>> onToken) {
-		this(port, path, expectedState, "DonationAlerts", "/twitch donations da login", onToken);
+		this(port, path, expectedState, onToken, params -> { });
+	}
+
+	public LocalCallbackServer(int port, String path, String expectedState, Consumer<Map<String, String>> onToken,
+			Consumer<Map<String, String>> onError) {
+		this(port, path, expectedState, "DonationAlerts", "/twitch donations da login", onToken, onError);
 	}
 
 	/**
@@ -55,12 +61,18 @@ public final class LocalCallbackServer implements Closeable {
 	 * @param retryHint команда, которой можно начать вход заново
 	 */
 	public LocalCallbackServer(int port, String path, String expectedState, String service, String retryHint, Consumer<Map<String, String>> onToken) {
+		this(port, path, expectedState, service, retryHint, onToken, params -> { });
+	}
+
+	public LocalCallbackServer(int port, String path, String expectedState, String service, String retryHint,
+			Consumer<Map<String, String>> onToken, Consumer<Map<String, String>> onError) {
 		this.port = port;
 		this.path = path;
 		this.expectedState = expectedState;
 		this.service = service;
 		this.retryHint = retryHint;
 		this.onToken = onToken;
+		this.onError = onError;
 	}
 
 	/** Случайный одноразовый {@code state} для ссылки входа. */
@@ -129,7 +141,8 @@ public final class LocalCallbackServer implements Closeable {
 				respond(out, 403, page("Отклонено", "Запрос пришёл не со страницы " + service + ". Открой ссылку входа из игры заново."));
 				return;
 			}
-			if (expectedState != null && params.containsKey("state") && !expectedState.equals(params.get("state"))) {
+			boolean stateVerified = expectedState == null || expectedState.equals(params.get("state"));
+			if (expectedState != null && params.containsKey("state") && !stateVerified) {
 				TwitchCraftClient.LOGGER.warn("Callback-сервер: параметр state не совпал — токен отклонён");
 				respond(out, 400, page("Отклонено", "Параметр state не совпал. Начни вход заново: " + retryHint));
 				return;
@@ -152,14 +165,35 @@ public final class LocalCallbackServer implements Closeable {
 					close();
 				}
 			} else {
-				String error = params.getOrDefault("error_description", params.getOrDefault("error", "токен не получен"));
-				respond(out, 400, page("Ошибка", service + " не выдал токен: " + escape(error) + ". Попробуй ещё раз: " + retryHint));
+				String error = params.containsKey("error")
+						? oauthErrorMessage(params)
+						: service + " не выдал токен: " + params.getOrDefault("error_description", "токен не получен");
+				respond(out, 400, page("Ошибка", escape(error) + " Попробуй ещё раз: " + retryHint));
+				if (params.containsKey("error")) {
+					if (stateVerified) {
+						notifyOAuthError(params);
+						close();
+					} else {
+						TwitchCraftClient.LOGGER.warn("Callback-сервер: {} вернул OAuth-ошибку без state — не закрываю ожидание входа", service);
+					}
+				}
 			}
 		} else if (target.equals(path) || target.equals(path + "/")) {
 			Map<String, String> params = parseQuery(query);
 			if (params.containsKey("error")) {
-				respond(out, 200, page("Доступ не выдан", "Ты отклонил(а) запрос или произошла ошибка: "
-						+ escape(params.getOrDefault("error_description", params.get("error"))) + ". Вернись в игру и попробуй снова."));
+				boolean stateVerified = expectedState == null || expectedState.equals(params.get("state"));
+				if (expectedState != null && params.containsKey("state") && !stateVerified) {
+					TwitchCraftClient.LOGGER.warn("Callback-сервер: параметр state не совпал — OAuth-ошибка проигнорирована");
+					respond(out, 400, page("Отклонено", "Параметр state не совпал. Начни вход заново: " + retryHint));
+					return;
+				}
+				respond(out, 200, page("Доступ не выдан", escape(oauthErrorMessage(params)) + " Вернись в игру и попробуй снова."));
+				if (stateVerified) {
+					notifyOAuthError(params);
+					close();
+				} else {
+					TwitchCraftClient.LOGGER.warn("Callback-сервер: {} вернул OAuth-ошибку без state — не закрываю ожидание входа", service);
+				}
 			} else if (params.containsKey("code")) {
 				// OAuth Authorization Code: код приходит прямо в адресе (?code=...&state=...), без хэша
 				if (expectedState != null && params.containsKey("state") && !expectedState.equals(params.get("state"))) {
@@ -189,6 +223,25 @@ public final class LocalCallbackServer implements Closeable {
 		} else {
 			respond(out, 404, page("Не найдено", "Эта страница служебная. Вернись в игру."));
 		}
+	}
+
+	private void notifyOAuthError(Map<String, String> params) {
+		try {
+			onError.accept(params);
+		} catch (RuntimeException e) {
+			TwitchCraftClient.LOGGER.warn("Callback-сервер: не удалось сообщить об ошибке OAuth", e);
+		}
+	}
+
+	private String oauthErrorMessage(Map<String, String> params) {
+		String error = params.getOrDefault("error", "oauth_error");
+		String description = params.getOrDefault("error_description", error);
+		if ("DonationAlerts".equals(service) && "invalid_client".equals(error)) {
+			return "DonationAlerts отклонил Client ID (invalid_client): проверь числовой ID приложения (не Client Secret), "
+					+ "что приложение существует, и что Redirect URI в его настройках в точности http://localhost:" + port + path
+					+ ". Ответ сервиса: " + description + ".";
+		}
+		return "Авторизация отклонена или завершилась ошибкой (" + error + "): " + description + ".";
 	}
 
 	/** Страница, которая пересылает токен из хэша адреса (#access_token=...) на сервер. */

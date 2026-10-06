@@ -3,7 +3,6 @@ package dev.dedworkshop.twitchcraft.donations;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.dedworkshop.twitchcraft.TwitchCraftClient;
-import dev.dedworkshop.twitchcraft.config.ModConfig;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 import dev.dedworkshop.twitchcraft.twitch.TwitchHttp;
 import dev.dedworkshop.twitchcraft.util.Chat;
@@ -104,16 +103,33 @@ public class DonationAlertsClient implements CentrifugoClient.Handler {
 
 	// ---------- Вход ----------
 
-	/** Ссылка для входа (OAuth implicit). Пустая строка, если не указан Client ID. */
+	/** Ссылка для входа (OAuth implicit). Пустая строка, если Client ID пустой или не состоит из цифр. */
 	public String loginUrl() {
-		ModConfig.Donations settings = mod.config().donations;
-		if (settings.donationAlertsClientId == null || settings.donationAlertsClientId.isBlank()) {
+		String clientId = mod.config().donations.donationAlertsClientId;
+		if (!isNumericClientId(clientId)) {
 			return "";
 		}
-		return OAUTH + "?client_id=" + encode(settings.donationAlertsClientId.trim())
+		String query = "client_id=" + encode(clientId.trim())
 				+ "&redirect_uri=" + encode(redirectUri())
 				+ "&response_type=token&scope=" + encode(SCOPES)
 				+ (loginState == null ? "" : "&state=" + encode(loginState));
+		// Keep the separator explicit: a malformed authorize URL can be reported by DonationAlerts as invalid_client.
+		int queryStart = OAUTH.indexOf('?');
+		String separator = queryStart < 0 ? "?" : (OAUTH.endsWith("?") || OAUTH.endsWith("&") ? "" : "&");
+		return OAUTH + separator + query;
+	}
+
+	private static boolean isNumericClientId(String clientId) {
+		if (clientId == null || clientId.isBlank()) {
+			return false;
+		}
+		String value = clientId.trim();
+		for (int i = 0; i < value.length(); i++) {
+			if (value.charAt(i) < '0' || value.charAt(i) > '9') {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public String redirectUri() {
@@ -125,36 +141,46 @@ public class DonationAlertsClient implements CentrifugoClient.Handler {
 	 *
 	 * @return ссылка или null, если вход начать нельзя (ошибка уже показана в чате)
 	 */
-	public String beginLogin() {
-		loginState = LocalCallbackServer.newState();
-		String url = loginUrl();
-		if (url.isEmpty()) {
+	public synchronized String beginLogin() {
+		cancelLogin();
+		String clientId = mod.config().donations.donationAlertsClientId;
+		if (clientId == null || clientId.isBlank()) {
 			Chat.error("Не указан Client ID приложения DonationAlerts. Создай приложение на donationalerts.com/application/clients "
 					+ "(Redirect URI: " + redirectUri() + ") и введи: /twitch donations da client <ID>");
 			return null;
 		}
-		cancelLogin();
-		LocalCallbackServer server = new LocalCallbackServer(mod.config().donations.callbackPort, CALLBACK_PATH, loginState, this::onLoginToken);
+		if (!isNumericClientId(clientId)) {
+			Chat.error("Client ID DonationAlerts должен содержать только цифры. Вставь именно ID приложения, не Client Secret; "
+					+ "Redirect URI: " + redirectUri());
+			return null;
+		}
+		loginState = LocalCallbackServer.newState();
+		String url = loginUrl();
+		if (url.isEmpty()) {
+			loginState = null;
+			Chat.error("Не удалось построить ссылку OAuth DonationAlerts. Проверь Client ID и настройки приложения.");
+			return null;
+		}
+		String expectedState = loginState;
+		LocalCallbackServer server = new LocalCallbackServer(mod.config().donations.callbackPort, CALLBACK_PATH, expectedState,
+				params -> onLoginToken(params, expectedState), params -> onLoginError(params, expectedState));
 		try {
 			server.start();
 		} catch (Exception e) {
+			loginState = null;
 			Chat.error("Не удалось открыть локальный порт " + mod.config().donations.callbackPort + " для входа: " + e.getMessage()
 					+ ". Поменяй порт в настройках донатов (callbackPort) и Redirect URI приложения.");
 			return null;
 		}
 		loginServer = server;
-		loginTimeout = mod.scheduler().schedule(() -> {
-			if (loginServer == server && server.isRunning()) {
-				server.close();
-				Chat.warn("Вход в DonationAlerts отменён: за " + LOGIN_TIMEOUT_MINUTES + " минут токен не получен.");
-			}
-		}, LOGIN_TIMEOUT_MINUTES, TimeUnit.MINUTES);
+		loginTimeout = mod.scheduler().schedule(() -> expireLogin(server, expectedState), LOGIN_TIMEOUT_MINUTES, TimeUnit.MINUTES);
 		return url;
 	}
 
-	public void cancelLogin() {
+	public synchronized void cancelLogin() {
 		LocalCallbackServer server = loginServer;
 		loginServer = null;
+		loginState = null;
 		if (server != null) {
 			server.close();
 		}
@@ -164,9 +190,12 @@ public class DonationAlertsClient implements CentrifugoClient.Handler {
 		}
 	}
 
-	private void onLoginToken(Map<String, String> params) {
+	private void onLoginToken(Map<String, String> params, String expectedState) {
+		if (!finishLoginAttempt(expectedState)) {
+			TwitchCraftClient.LOGGER.info("DonationAlerts: проигнорирован токен из отменённой или устаревшей попытки входа");
+			return;
+		}
 		String token = params.get("access_token");
-		loginServer = null;
 		mod.worker().execute(() -> {
 			try {
 				JsonObject user = fetchUser(token);
@@ -187,6 +216,47 @@ public class DonationAlertsClient implements CentrifugoClient.Handler {
 				Chat.error("DonationAlerts: ошибка входа: " + e.getMessage());
 			}
 		});
+	}
+
+	private void onLoginError(Map<String, String> params, String expectedState) {
+		if (!finishLoginAttempt(expectedState)) {
+			return;
+		}
+		String error = params.getOrDefault("error", "oauth_error");
+		if ("invalid_client".equals(error)) {
+			Chat.error("DonationAlerts отклонил приложение (invalid_client). Проверь числовой Client ID (не Client Secret), "
+					+ "что приложение не удалено, и точный Redirect URI: " + redirectUri());
+			return;
+		}
+		String description = params.getOrDefault("error_description", error).replace('\r', ' ').replace('\n', ' ').trim();
+		if (description.length() > 180) {
+			description = description.substring(0, 180) + "…";
+		}
+		Chat.error("DonationAlerts: вход отклонён (" + error + "): " + description + ". Попробуй /twitch donations da login.");
+	}
+
+	private synchronized boolean finishLoginAttempt(String expectedState) {
+		if (expectedState == null || !expectedState.equals(loginState)) {
+			return false;
+		}
+		loginServer = null;
+		loginState = null;
+		if (loginTimeout != null) {
+			loginTimeout.cancel(false);
+			loginTimeout = null;
+		}
+		return true;
+	}
+
+	private synchronized void expireLogin(LocalCallbackServer server, String expectedState) {
+		if (loginServer != server || !expectedState.equals(loginState) || !server.isRunning()) {
+			return;
+		}
+		server.close();
+		loginServer = null;
+		loginState = null;
+		loginTimeout = null;
+		Chat.warn("Вход в DonationAlerts отменён: за " + LOGIN_TIMEOUT_MINUTES + " минут токен не получен.");
 	}
 
 	public void logout() {

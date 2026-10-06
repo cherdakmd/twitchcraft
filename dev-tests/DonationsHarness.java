@@ -9,9 +9,11 @@ import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 import dev.dedworkshop.twitchcraft.util.Chat;
 
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -70,6 +72,19 @@ public class DonationsHarness {
         return r.statusCode() + " " + r.body();
     }
 
+    static String queryParam(String url, String name) {
+        String query = URI.create(url).getRawQuery();
+        if (query == null) return null;
+        for (String pair : query.split("&")) {
+            int equals = pair.indexOf('=');
+            String key = URLDecoder.decode(equals >= 0 ? pair.substring(0, equals) : pair, StandardCharsets.UTF_8);
+            if (name.equals(key)) {
+                return URLDecoder.decode(equals >= 0 ? pair.substring(equals + 1) : "", StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
     static int stateInt(String url, String key) throws Exception {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"" + key + "\": (\\d+)").matcher(http(url));
         return m.find() ? Integer.parseInt(m.group(1)) : -1;
@@ -98,17 +113,51 @@ public class DonationsHarness {
         DonationAlertsClient da = mod.manager.donationAlerts();
         DonatePayClient dp = mod.manager.donatePay();
 
-        System.out.println("== Этап 1: DonationAlerts — вход через локальный callback ==");
+        System.out.println("== Этап 1: DonationAlerts — OAuth URL, проверка Client ID и локальный callback ==");
         check("not configured initially", !da.isConfigured() && da.statusText().contains("нет входа"));
+        mod.config.donations.donationAlertsClientId = "not-a-client-id";
+        check("non-numeric Client ID rejected before opening callback", da.beginLogin() == null && !da.isLoginInProgress());
+        mod.config.donations.donationAlertsClientId = "12345";
         String loginUrl = da.beginLogin();
         check("login url built", loginUrl != null && loginUrl.contains("client_id=12345") && loginUrl.contains("response_type=token")
                 && loginUrl.contains("redirect_uri=http%3A%2F%2Flocalhost%3A8635%2Fda") && loginUrl.contains("oauth-donation-subscribe"));
+        URI authUri = URI.create(loginUrl);
+        check("authorize URL has one query delimiter and the expected endpoint", authUri.getPath().equals("/oauth/authorize")
+                && authUri.getRawQuery() != null && loginUrl.indexOf('?') == loginUrl.lastIndexOf('?'));
+        check("OAuth query contains exact app ID, callback, implicit grant and scopes (no secret)",
+                "12345".equals(queryParam(loginUrl, "client_id"))
+                        && "http://localhost:8635/da".equals(queryParam(loginUrl, "redirect_uri"))
+                        && "token".equals(queryParam(loginUrl, "response_type"))
+                        && DonationAlertsClient.SCOPES.equals(queryParam(loginUrl, "scope"))
+                        && !authUri.getRawQuery().contains("client_secret"));
+        String state = queryParam(loginUrl, "state");
         check("login in progress", da.isLoginInProgress() && da.statusText().contains("браузере"));
+        String wrongErrorState = http("http://127.0.0.1:8635/da?error=invalid_client&state=wrong-state");
+        check("OAuth error with wrong state rejected without ending login", wrongErrorState.startsWith("400") && da.isLoginInProgress());
+        String authErrorPage = http("http://127.0.0.1:8635/da?error=invalid_client&error_description=Client+authentication+failed&state=" + state);
+        check("invalid_client callback explains cause, notifies game and ends login", authErrorPage.startsWith("200")
+                && authErrorPage.contains("invalid_client") && authErrorPage.contains("Client ID")
+                && authErrorPage.contains("http://localhost:8635/da") && waitFor(() -> !da.isLoginInProgress(), 2000)
+                && Chat.lastText().contains("invalid_client"));
+        String retryAfterQueryError = da.beginLogin();
+        String retryState = queryParam(retryAfterQueryError, "state");
+        check("login retry after query error starts with fresh state", retryAfterQueryError != null && da.isLoginInProgress()
+                && retryState != null && !retryState.equals(state));
+        loginUrl = retryAfterQueryError;
+        state = retryState;
+        String hashAuthError = http("http://127.0.0.1:8635/da/token?error=invalid_client&error_description=Client+authentication+failed&state=" + state);
+        check("implicit-flow invalid_client also notifies game and ends login", hashAuthError.startsWith("400")
+                && hashAuthError.contains("invalid_client") && hashAuthError.contains("Client ID")
+                && hashAuthError.contains("http://localhost:8635/da") && waitFor(() -> !da.isLoginInProgress(), 2000)
+                && Chat.lastText().contains("invalid_client"));
+        String retryAfterHashError = da.beginLogin();
+        check("login retry after fragment error starts", retryAfterHashError != null && da.isLoginInProgress());
+        loginUrl = retryAfterHashError;
         String landing = http("http://127.0.0.1:8635/da");
         check("landing page served", landing.startsWith("200") && landing.contains("location.hash"));
         java.util.regex.Matcher sm = java.util.regex.Pattern.compile("[&?]state=([A-Za-z0-9_-]+)").matcher(loginUrl);
         check("login url contains random state", sm.find() && sm.group(1).length() >= 20);
-        String state = sm.group(1);
+        state = sm.group(1);
         String crossSite = http("http://127.0.0.1:8635/da/token?access_token=evil-token&state=" + state, "Sec-Fetch-Site", "cross-site");
         check("cross-site token request rejected (403)", crossSite.startsWith("403") && !mod.store.hasDonationAlerts());
         String wrongState = http("http://127.0.0.1:8635/da/token?access_token=evil-token&state=wrong-state");
