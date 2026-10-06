@@ -143,12 +143,13 @@ jobs:
               parts.append("")
 
           if build_outcome == "success" and tests_outcome == "success":
-              passed = [line for line in read_tail(os.environ.get("TESTS_LOG", ""), 400) if "PASSED" in line or line.startswith("==")]
+              passed = [line for line in read_tail(os.environ.get("TESTS_LOG", ""), 600)
+                        if line.startswith("ALL ") or line.startswith("== ") or "TESTS PASSED" in line]
               if passed:
                   parts.append("<details><summary>Итоги тестов</summary>")
                   parts.append("")
                   parts.append("```")
-                  parts.extend(passed[-30:])
+                  parts.extend(passed[:80])
                   parts.append("```")
                   parts.append("</details>")
 
