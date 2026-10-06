@@ -81,6 +81,8 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+          BRANCH: ${{ github.head_ref }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           TESTS_OUTCOME: ${{ steps.tests.outcome }}
           BUILD_LOG: ${{ runner.temp }}/build.log
@@ -90,6 +92,13 @@ jobs:
           set -e
           if [ -z "$PR" ]; then
             echo "Это не pull request — отчёт в комментарии не нужен."
+            exit 0
+          fi
+          # Отчёт пишет только последний прогон по ветке: иначе завершившийся позже
+          # старый (например, зависший до таймаута) прогон перекрыл бы свежий результат.
+          LATEST=$(gh api "repos/$REPO/actions/runs?branch=$BRANCH&event=pull_request&per_page=1" --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
+          if [ -n "$LATEST" ] && [ "$LATEST" != "$RUN_ID" ]; then
+            echo "Этот прогон ($RUN_ID) не последний в ветке (последний: $LATEST) — устаревший отчёт не публикуем."
             exit 0
           fi
           python3 - <<'PY'
