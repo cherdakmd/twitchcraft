@@ -90,6 +90,12 @@ public final class ArtifactConfig {
 		/** Награды за баллы канала: если название награды содержит одно из этих слов — артефакт. */
 		public boolean rewards = true;
 		public List<String> rewardNames = new ArrayList<>(List.of("артефакт", "artifact"));
+		/**
+		 * Награды, привязанные к аддону <b>по id</b> (хук 3 API): id награды → название для списка команд.
+		 * Такие награды аддон получает от мода вместе с вводом зрителя, даже если стример переименовал награду.
+		 * Пример: {@code "rewardIds": {"f0a1b2c3-…": "Артефакт"}}.
+		 */
+		public Map<String, String> rewardIds = new LinkedHashMap<>();
 		/** Победа над боссом в игре: шанс в процентах. */
 		public boolean bossKills = true;
 		public double bossKillChance = 50;
@@ -178,6 +184,9 @@ public final class ArtifactConfig {
 		drops.bossKillChance = clamp(drops.bossKillChance, 0, 100);
 		if (drops.rewardNames == null) {
 			drops.rewardNames = new ArrayList<>();
+		}
+		if (drops.rewardIds == null) {
+			drops.rewardIds = new LinkedHashMap<>();
 		}
 		effectRefreshSeconds = clamp(effectRefreshSeconds, 5, 600);
 		if (texts == null) texts = new Texts();

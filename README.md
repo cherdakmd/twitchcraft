@@ -430,8 +430,29 @@ Loom считает такие версии необфусцированными
 `id/title/version`, `onReady(AddonContext)`, `onEvent(TwitchEvent)`, `onTick(Minecraft)`, `onConfigChanged()`, `onShutdown()`.
 `AddonContext` даёт папку конфигов (`config/`), потоки TwitchCraft (`scheduler()`, `worker()`), клиент, настройки мода,
 чат и объявления в чаты площадок, плейсхолдеры и `runCommand(...)` (в одиночной игре — с правами оператора).
-Подключённые аддоны видны в `/twitch addons`. Ограничения и планы по API (хуки в стиле TikFinity: свои переменные,
-действия, привязка к награде по её id, до 4 своих триггеров) — в `AUDIT.md`.
+
+Всё остальное аддон добавляет в мод хуками (как в TikFinity, только на Java — без JSON):
+
+| Хук | Вызов | Что получается |
+|---|---|---|
+| 1. Переменные | `context.registerVariable("boss_kills", e -> "7")` | плейсхолдер `{boss_kills}` в сообщениях, командах, HUD и оверлее мода |
+| 2. Действия (флоу) | `context.registerAction(AddonAction.of("id", "Название", AddonTrigger.cheer(100)).elements(elements))` | мод сам следит за триггером и сам выполняет элементы (сообщение, титул, звук, команды) |
+| 3. Награды по id | `context.bindReward("f0a1-…", "Артефакт", (event, input) -> …)` | привязка к конкретной награде за баллы канала по **id**, а не по названию; ввод зрителя приходит аргументом |
+| 4. Свои триггеры | `context.registerCustomTrigger(0, "Проверка", "вручную", trigger, actions)` | до **4** кастомных триггеров (`v0…v3`) со своими условиями и действиями |
+
+Триггеры (`AddonTrigger`) — тоже Java: `follow()`, `subscribe()`, `giftSub(5)`, `cheer(100)`, `raid(10)`, `donation(50)`,
+`redemption(id)`, `redemptionTitle("Артефакт")`, `chatCommand("артефакт", "artifacts")`, `game(GAME_BOSS)`,
+`every()` и `custom(name, params, event -> …)` для своих условий. Элементы (`AddonElements`) собираются по шагам:
+`message/title/actionbar/toast/sound/commands/chance/repeat`, поддерживают плейсхолдеры и `blockedCommands`.
+
+Ошибки аддона изолированы: упавшая переменная или условие пишутся в лог, остальные аддоны и мод продолжают работать.
+Смотреть, что зарегистрировано: `/twitch addons`, `addons actions`, `addons rewards`, `addons triggers`,
+проверить кастомный триггер без зрителей — `/twitch addons fire v0`.
+
+Аддон «Артефакты» — пример использования всех четырёх хуков: переменные `{artifact_count}`, `{artifact_total}`,
+`{artifact_destroyed}`, `{artifact_last}`, `{artifact_limit}`; справка по чат-команде `!артефакты`; привязка наград
+из `rewardIds` в своём конфиге (по id) с записью ввода зрителя в чат; кастомные триггеры `v0` (проверка вручную)
+и `v1` (рейд от 25 зрителей).
 
 ## 6. Настройка действий — файл `config/twitchcraft.json`
 

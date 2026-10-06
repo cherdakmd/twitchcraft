@@ -270,7 +270,9 @@ public class TwitchCraftClient implements ClientModInitializer {
 	 * {stream_time} {viewers}, {fund_*}, {donation_prices_*} {donation_currency}, {player}.
 	 */
 	public java.util.Map<String, String> globalPlaceholders() {
-		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>();
+		// Хук 1: переменные аддонов (без события). Мод идёт вторым, чтобы свои имена имели приоритет.
+		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>(
+				dev.dedworkshop.twitchcraft.api.AddonRegistry.globalVariables());
 		Minecraft mc = Minecraft.getInstance();
 		vars.put("player", mc != null && mc.player != null ? mc.player.getName().getString() : "");
 		if (events != null) {

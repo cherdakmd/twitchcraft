@@ -1,6 +1,9 @@
 package dev.dedworkshop.twitchcraft.artifacts;
 
+import dev.dedworkshop.twitchcraft.api.AddonAction;
 import dev.dedworkshop.twitchcraft.api.AddonContext;
+import dev.dedworkshop.twitchcraft.api.AddonElements;
+import dev.dedworkshop.twitchcraft.api.AddonTrigger;
 import dev.dedworkshop.twitchcraft.api.TwitchCraftAddon;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 import net.minecraft.client.Minecraft;
@@ -8,10 +11,13 @@ import net.minecraft.client.player.LocalPlayer;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Аддон «Артефакты» — отдельный мод для TwitchCraft.
@@ -45,6 +51,12 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 	private final ArtifactDrops drops = new ArtifactDrops();
 	private final Random random = new Random();
 
+	/** Награды, привязанные к аддону по id (хук 3): их обрабатывает binding, а не общие правила. */
+	private final Set<String> boundRewardIds = new LinkedHashSet<>();
+	/** Зарегистрированы ли хуки (переменные/действия/триггеры регистрируются один раз). */
+	private boolean hooksRegistered;
+	private String lastArtifactName = "";
+
 	private long lastScanAt;
 	private long lastCurseAt;
 	private long lastEffectsAt;
@@ -77,6 +89,8 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		this.config = ArtifactConfig.load(dir);
 		this.store = ArtifactStore.load(dir.resolve(ArtifactStore.FILE_NAME));
 		ArtifactCommands.register(this);
+		registerHooks(context);
+		bindRewards(context);
 		context.logger().info("Аддон «Артефакты» {}: загружено (артефактов {}, выбито {}, разрушено {}, лимит {}, проклятие +1 % за {} мин)",
 				VERSION, store.activeCount(), store.generated, store.destroyed, config.maxArtifacts, config.curse.intervalMinutes);
 	}
@@ -103,6 +117,7 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 	public void reload() {
 		this.config = ArtifactConfig.load(context.configDir());
 		store.save();
+		bindRewards(context); // награды могли поменяться — привязку по id обновляем
 	}
 
 	// ---------- События ----------
@@ -117,6 +132,9 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		}
 		if (event.synthetic() && !config.allowSynthetic) {
 			return;
+		}
+		if (event.type() == TwitchEvent.Type.REWARD && boundRewardIds.contains(event.rewardId())) {
+			return; // эту награду мод уже отдал аддону по id — не выдаём второй артефакт
 		}
 		int count;
 		try {
@@ -147,6 +165,9 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 	}
 
 	private Artifact addAndGive(Artifact artifact) {
+		if (artifact != null) {
+			lastArtifactName = artifact.name == null ? "" : artifact.name;
+		}
 		if (!store.canAdd(config.maxArtifacts)) {
 			ArtifactChat.warn(ArtifactFactory.text(config.texts.full, ArtifactFactory.placeholders(artifact, config.maxArtifacts)));
 			return null;
@@ -225,6 +246,83 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 		if (store != null) {
 			store.save();
 		}
+	}
+
+	// ---------- Хуки API аддонов ----------
+
+	/**
+	 * Хуки 1, 2 и 4: переменные аддона, действие для чат-команды и кастомные триггеры {@code v0…v3}.
+	 * Регистрируются один раз (повторная регистрация тех же имён отклоняется модом).
+	 */
+	private void registerHooks(AddonContext context) {
+		if (hooksRegistered) {
+			return;
+		}
+		hooksRegistered = true;
+
+		// Хук 1: свои переменные — работают в любых текстах мода: {artifact_count}, {artifact_last}…
+		context.registerVariable("artifact_count", event -> String.valueOf(store.activeCount()));
+		context.registerVariable("artifact_total", event -> String.valueOf(store.generated));
+		context.registerVariable("artifact_destroyed", event -> String.valueOf(store.destroyed));
+		context.registerVariable("artifact_last", event -> lastArtifactName);
+		context.registerVariable("artifact_limit", event -> String.valueOf(config.maxArtifacts));
+
+		// Хук 2: действие исполняет мод — справка по команде чата
+		context.registerAction(AddonAction.of("artifacts_help", "Артефакты: справка", AddonTrigger.chatCommand("артефакты"))
+				.elements(AddonElements.builder()
+						.message("§dАртефакты§r: в запасе §f{artifact_count}§r шт., всего выбито §f{artifact_total}§r, "
+								+ "разрушено §f{artifact_destroyed}§r. Выпадают за битсы, донаты, подписки, рейды, "
+								+ "награды за баллы канала и победы над боссами.")
+						.build())
+				.build());
+
+		// Хук 4: кастомные триггеры v0…v3 (у аддона их может быть до четырёх)
+		context.registerCustomTrigger(0, "Проверка артефактов", "Запуск вручную: /twitch addons fire v0",
+				AddonTrigger.custom("manual", Map.of("slot", "v0"), event -> false),
+				AddonElements.builder()
+						.message("§dПроверка аддона «Артефакты»§r: в запасе §f{artifact_count}§r, выбито §f{artifact_total}§r, "
+								+ "разрушено §f{artifact_destroyed}§r, последний — §f{artifact_last}§r.")
+						.build());
+		context.registerCustomTrigger(1, "Рейд: приветствие", "Рейд от 25 зрителей",
+				AddonTrigger.raid(25),
+				AddonElements.builder()
+						.message("§6{user}§r привёл рейд из §f{amount}§r зрителей! Артефактов в запасе: §f{artifact_count}§r.")
+						.sound("minecraft:ui.toast.challenge_complete", 1.0f, 1.0f)
+						.build());
+
+		context.logger().info("Аддон «Артефакты»: зарегистрировано переменных 5, действий 1, кастомных триггеров 2 из 4");
+	}
+
+	/**
+	 * Хук 3: привязка наград по id. Ввод зрителя (то, что он написал в поле награды) приходит
+	 * в обработчик отдельным аргументом и пишется в чат стримеру.
+	 */
+	private void bindRewards(AddonContext context) {
+		if (context == null || config == null || config.drops == null || config.drops.rewardIds == null) {
+			return;
+		}
+		boundRewardIds.clear();
+		for (Map.Entry<String, String> entry : config.drops.rewardIds.entrySet()) {
+			String id = entry.getKey() == null ? "" : entry.getKey().trim();
+			if (id.isEmpty()) {
+				continue;
+			}
+			String title = entry.getValue() == null ? "" : entry.getValue();
+			boolean bound = context.bindReward(id, title, this::onBoundReward);
+			if (bound) {
+				boundRewardIds.add(id);
+				context.logger().info("Аддон «Артефакты»: награда «{}» ({}) привязана по id", title.isBlank() ? id : title, id);
+			}
+		}
+	}
+
+	/** Активирована награда, привязанная к аддону по id: выдаём артефакт и показываем ввод зрителя. */
+	private void onBoundReward(TwitchEvent event, String input) {
+		String note = input == null ? "" : input.trim();
+		if (!note.isEmpty()) {
+			ArtifactChat.info("§d" + event.user() + "§r в награде «" + event.reward() + "» написал(а): §f" + note);
+		}
+		drop("reward", event.user());
 	}
 
 	// ---------- Внутреннее ----------

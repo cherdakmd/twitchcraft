@@ -22,7 +22,7 @@ public final class AddonManager {
 	public static final String ENTRYPOINT = "twitchcraft-addon";
 
 	private static final List<TwitchCraftAddon> ADDONS = new ArrayList<>();
-	private static AddonContext context;
+	private static TwitchCraftClient mod;
 	private static boolean loaded;
 
 	private AddonManager() {
@@ -34,7 +34,7 @@ public final class AddonManager {
 			return;
 		}
 		loaded = true;
-		context = new AddonContext(mod);
+		AddonManager.mod = mod;
 		List<EntrypointContainer<TwitchCraftAddon>> containers;
 		try {
 			containers = FabricLoader.getInstance().getEntrypointContainers(ENTRYPOINT, TwitchCraftAddon.class);
@@ -49,7 +49,8 @@ public final class AddonManager {
 				if (addon == null) {
 					continue;
 				}
-				addon.onReady(context);
+				// Свой контекст каждому аддону: по нему видно, чьи переменные и действия.
+				addon.onReady(new AddonContext(AddonManager.mod, addon.id()));
 				ADDONS.add(addon);
 				TwitchCraftClient.LOGGER.info("TwitchCraft: аддон «{}» (мод {}, версия {}) подключён",
 						addon.title(), modId, addon.version());
@@ -107,6 +108,11 @@ public final class AddonManager {
 				TwitchCraftClient.LOGGER.error("Аддон «{}»: ошибка при выходе из игры", addon.title(), t);
 			}
 		}
+	}
+
+	/** Мод, которому принадлежат аддоны (для {@code /twitch addons}). */
+	public static TwitchCraftClient mod() {
+		return mod;
 	}
 
 	/** Сколько аддонов подключено. */
