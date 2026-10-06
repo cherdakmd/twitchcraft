@@ -117,8 +117,11 @@ public class BossHarness {
 		check("WITHER_SKULL: голова иссушителя с движением", wither.size() == 1
 				&& wither.get(0).startsWith("summon minecraft:wither_skull 100 65.5 200 {Motion:[")
 				&& wither.get(0).endsWith("d]}"));
-		check("WITHER_SKULL: вектор в сторону игрока (dx>0, dz>0)",
-				wither.get(0).contains("+]") || wither.get(0).matches(".*Motion:\\[[0-9.]+d,[0-9.]+d,[0-9.]+d]}.*"));
+		java.util.regex.Matcher motion = java.util.regex.Pattern
+				.compile("Motion:\\[(-?[0-9.]+)d,(-?[0-9.]+)d,(-?[0-9.]+)d]").matcher(wither.get(0));
+		boolean motionOk = motion.find() && Double.parseDouble(motion.group(1)) > 0
+				&& Double.parseDouble(motion.group(3)) > 0; // игрок правее (+10) и дальше (+8) босса
+		check("WITHER_SKULL: вектор в сторону игрока (dx>0, dz>0)", motionOk);
 
 		List<String> ring = BossSkills.commands("FIRE_RING", ctx());
 		check("FIRE_RING: 12 блоков огня", ring.size() == 12 && ring.stream().allMatch(c -> c.endsWith("minecraft:fire keep")));
@@ -126,8 +129,17 @@ public class BossHarness {
 				&& ring.get(3).equals("setblock 100 64 203 minecraft:fire keep"));
 
 		List<String> teleport = BossSkills.commands("TELEPORT", ctx());
-		check("TELEPORT: босс смещается недалеко", teleport.size() == 1
-				&& teleport.get(0).startsWith("tp @e[type=minecraft:zombie,name=\"Кровавый Палач\",limit=1] 1"));
+		boolean teleportNear = false;
+		if (teleport.size() == 1) {
+			String[] parts = teleport.get(0).split(" ");
+			if (parts.length == 6 && parts[0].equals("tp") && parts[1].startsWith("@e[type=minecraft:zombie")) {
+				double tx = Double.parseDouble(parts[2]);
+				double tz = Double.parseDouble(parts[4]);
+				teleportNear = Math.abs(tx - 100) <= 5 && Math.abs(tz - 200) <= 5 && Double.parseDouble(parts[3]) == 64;
+			}
+		}
+		check("TELEPORT: босс смещается недалеко (±5 блоков)", teleportNear);
+
 		boolean moved = false;
 		for (int i = 0; i < 30 && !moved; i++) {
 			String command = BossSkills.commands("TELEPORT", new BossSkills.Context("Палач", "minecraft:zombie", 0, 64, 0,

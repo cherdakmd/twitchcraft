@@ -67,7 +67,7 @@ public final class BossSkills {
 			}
 			case "LIGHTNING" -> commands.add("summon minecraft:lightning_bolt "
 					+ coord(ctx.playerX()) + " " + coord(ctx.playerY()) + " " + coord(ctx.playerZ()));
-			case "PULL" -> commands.add("tp @s " + ctx.bossX() + " " + ctx.bossY() + " " + ctx.bossZ());
+			case "PULL" -> commands.add("tp @s " + coord(ctx.bossX()) + " " + coord(ctx.bossY()) + " " + coord(ctx.bossZ()));
 			case "EARTHQUAKE" -> {
 				// В ванильных командах нет «подбросить» — ближайший аналог: левитация на секунду
 				commands.add("effect give @a[distance=..10] minecraft:levitation 1 2");
@@ -83,7 +83,8 @@ public final class BossSkills {
 				if (dx == 0 && dz == 0) {
 					dx = 3;
 				}
-				commands.add("tp " + ctx.selector() + " " + (ctx.bossX() + dx) + " " + ctx.bossY() + " " + (ctx.bossZ() + dz));
+				commands.add("tp " + ctx.selector() + " " + coord(ctx.bossX() + dx) + " " + coord(ctx.bossY())
+						+ " " + coord(ctx.bossZ() + dz));
 			}
 			case "BLINDNESS" -> commands.add("effect give @s minecraft:blindness 3 1");
 			case "WITHER_SKULL" -> {
@@ -95,7 +96,8 @@ public final class BossSkills {
 					length = 1;
 				}
 				double speed = 1.5;
-				commands.add("summon minecraft:wither_skull " + ctx.bossX() + " " + (ctx.bossY() + 1.5) + " " + ctx.bossZ()
+				commands.add("summon minecraft:wither_skull " + coord(ctx.bossX()) + " " + coord(ctx.bossY() + 1.5) + " "
+						+ coord(ctx.bossZ())
 						+ " {Motion:[" + round(dx / length * speed) + "d," + round(dy / length * speed) + "d,"
 						+ round(dz / length * speed) + "d]}");
 			}
