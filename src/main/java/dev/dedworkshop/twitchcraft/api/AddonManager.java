@@ -2,7 +2,7 @@ package dev.dedworkshop.twitchcraft.api;
 
 import dev.dedworkshop.twitchcraft.TwitchCraftClient;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
-import net.fabricmc.loader.api.EntrypointContainer;
+import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
