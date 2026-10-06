@@ -39,6 +39,18 @@ jobs:
           chmod +x gradlew
           ./gradlew build --no-daemon 2>&1 | tee "$RUNNER_TEMP/build.log"
 
+      - name: Проверка jar-файлов (мод + аддон «Артефакты»)
+        run: |
+          set -e
+          ls -l build/libs/*.jar
+          MOD_JAR=$(ls build/libs/twitchcraft-*.jar | grep -v -- "-sources" | head -1)
+          ADDON_JAR=$(ls build/libs/artifact-addon-*.jar | head -1)
+          test -f "$MOD_JAR"
+          test -f "$ADDON_JAR"
+          unzip -l "$ADDON_JAR" | grep -q "fabric.mod.json"
+          unzip -l "$ADDON_JAR" | grep -q "ArtifactsAddon.class"
+          echo "Собраны: $MOD_JAR и $ADDON_JAR (точка входа twitchcraft-addon на месте)."
+
       - name: Автотесты (LogicTest + аддон «Артефакты» + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
         id: tests
         run: |
