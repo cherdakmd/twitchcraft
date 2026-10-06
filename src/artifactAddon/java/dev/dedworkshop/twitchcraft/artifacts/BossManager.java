@@ -88,7 +88,7 @@ public final class BossManager {
 				"player", killer.isBlank() ? "" : killer));
 		announce(text);
 		publish(hookEvent(TwitchEvent.GAME_BOSS_DEFEAT, killer.isBlank() ? bossName : killer, bossName,
-				killer.isBlank() ? "" : killer, store.bossDefeats));
+				killer.isBlank() ? "" : killer, (int) Math.min(Integer.MAX_VALUE, store.bossDefeats)));
 
 		// Артефакт за победу — с шансом из настроек (в серверном аддоне 50 %)
 		int chance = config == null || config.bosses == null ? 50 : config.bosses.artifactChancePercent;
@@ -319,7 +319,7 @@ public final class BossManager {
 		announce(text);
 		// Событие в конвейер мода: действия из конфига и кастомные триггеры аддонов
 		publish(hookEvent(TwitchEvent.GAME_BOSS_SPAWN, boss.name(), boss.title(),
-				"X " + (long) x + " Z " + (long) z, store.bossSpawned));
+				"X " + (long) x + " Z " + (long) z, (int) Math.min(Integer.MAX_VALUE, store.bossSpawned)));
 		log().info("Боссы: «{}» появился (X {} Y {} Z {}), навыков {}", boss.name(), (long) x, (long) y, (long) z,
 				boss.skills().size());
 	}
