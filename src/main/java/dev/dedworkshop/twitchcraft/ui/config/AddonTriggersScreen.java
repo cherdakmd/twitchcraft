@@ -37,6 +37,7 @@ class AddonTriggersScreen extends BaseScreen {
 		GridLayout grid = new GridLayout().columnSpacing(4).rowSpacing(4);
 		grid.defaultCellSetting().alignVerticallyMiddle();
 		for (int index = 0; index < AddonRegistry.MAX_CUSTOM_TRIGGERS; index++) {
+			final int idx = index; // для лямбд кнопок (переменная цикла не effectively final)
 			String slot = "v" + index;
 			AddonCustomTrigger trigger = AddonRegistry.customTrigger(index);
 			ModConfig.Resolved resolved = config.findAddonTriggerAction(slot);
@@ -58,7 +59,7 @@ class AddonTriggersScreen extends BaseScreen {
 					})), trigger == null
 					? "Слот пока пуст — действие будет ждать, пока аддон зарегистрирует здесь триггер"
 					: "Действие из конфига для триггера «" + trigger.name() + "» (раздел addonTriggers)"), index, 1);
-			grid.addChild(Widgets.button("Тест", 44, () -> fire(index, slot),
+			grid.addChild(Widgets.button("Тест", 44, () -> fire(idx, slot),
 					"Запустить триггер вручную, как /twitch addons fire " + slot + " (также выполняет привязанное действие)"), index, 2);
 		}
 		content.addChild(grid);
