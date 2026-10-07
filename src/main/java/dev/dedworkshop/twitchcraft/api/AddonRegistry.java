@@ -1,6 +1,7 @@
 package dev.dedworkshop.twitchcraft.api;
 
 import dev.dedworkshop.twitchcraft.TwitchCraftClient;
+import dev.dedworkshop.twitchcraft.action.Placeholders;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 
 import java.util.ArrayList;
@@ -82,16 +83,20 @@ public final class AddonRegistry {
 			TwitchCraftClient.LOGGER.warn("Аддон «{}»: действие не зарегистрировано — нужны id и триггер", addonId);
 			return false;
 		}
-		for (ActionSlot existing : ACTIONS) {
-			if (existing.action().id().equalsIgnoreCase(action.id())) {
-				if (!existing.addonId().equals(addonId)) {
-					TwitchCraftClient.LOGGER.warn("Аддон «{}»: действие «{}» уже зарегистрировано аддоном «{}» — пропускаю",
-							addonId, action.id(), existing.addonId());
-					return false;
-				}
-				ACTIONS.remove(existing);
-				break;
+		// Замена своего действия тем же аддоном: ищем по индексу — remove() внутри for-each
+		// над этим же списком приводил бы к ConcurrentModificationException.
+		for (int i = 0; i < ACTIONS.size(); i++) {
+			ActionSlot existing = ACTIONS.get(i);
+			if (!existing.action().id().equalsIgnoreCase(action.id())) {
+				continue;
 			}
+			if (!existing.addonId().equals(addonId)) {
+				TwitchCraftClient.LOGGER.warn("Аддон «{}»: действие «{}» уже зарегистрировано аддоном «{}» — пропускаю",
+						addonId, action.id(), existing.addonId());
+				return false;
+			}
+			ACTIONS.remove(i);
+			break;
 		}
 		ACTIONS.add(new ActionSlot(addonId, action));
 		TwitchCraftClient.LOGGER.info("Аддон «{}»: действие «{}» ({}) ждёт триггер {}", addonId, action.title(),
@@ -144,6 +149,10 @@ public final class AddonRegistry {
 	/**
 	 * Значения переменных аддонов (хук 1) — для подстановки в сообщения, команды и HUD.
 	 * Ошибка одного аддона не мешает остальным: переменная просто не попадёт в набор.
+	 *
+	 * <p>Значения проходят ту же очистку, что и тексты событий ({@link Placeholders#safe}):
+	 * переменные аддонов подставляются в команды Minecraft, которые мод выполняет с правами
+	 * оператора, поэтому переводы строк, кавычки, {@code §} и гигантские тексты вырезаются.</p>
 	 */
 	public static Map<String, String> variables(TwitchEvent event) {
 		Map<String, String> values = new LinkedHashMap<>();
@@ -151,7 +160,7 @@ public final class AddonRegistry {
 			try {
 				String value = entry.getValue().provider().value(event);
 				if (value != null) {
-					values.put(entry.getKey(), value);
+					values.put(entry.getKey(), Placeholders.safe(value));
 				}
 			} catch (Throwable t) {
 				TwitchCraftClient.LOGGER.error("Аддон «{}»: переменная {{{}}} упала на событии {}",
@@ -159,6 +168,22 @@ public final class AddonRegistry {
 			}
 		}
 		return values;
+	}
+
+	/**
+	 * Добавить переменные аддонов в уже собранную карту плейсхолдеров мода.
+	 *
+	 * <p>Аддон занимает только свободные имена: {@code {user}}, {@code {amount}}, {@code {deaths}}
+	 * и остальные переменные мода переменная аддона перехватить не может — иначе одна опечатка
+	 * в имени тихо ломала бы все тексты и команды мода.</p>
+	 */
+	public static void applyVariables(Map<String, String> vars, TwitchEvent event) {
+		if (vars == null) {
+			return;
+		}
+		for (Map.Entry<String, String> entry : variables(event).entrySet()) {
+			vars.putIfAbsent(entry.getKey(), entry.getValue());
+		}
 	}
 
 	/** Значения переменных аддонов без события (HUD, оверлей, статус). */
@@ -171,6 +196,15 @@ public final class AddonRegistry {
 	 * и действия их кастомных триггеров. Выполняет их мод.
 	 */
 	public static List<AddonElements> elementsFor(TwitchEvent event) {
+		List<AddonElements> result = actionElementsFor(event);
+		for (AddonCustomTrigger trigger : matchedCustomTriggers(event)) {
+			result.addAll(trigger.actions());
+		}
+		return result;
+	}
+
+	/** Элементы обычных действий аддонов (хук 2), у которых сработал триггер — без кастомных триггеров. */
+	public static List<AddonElements> actionElementsFor(TwitchEvent event) {
 		List<AddonElements> result = new ArrayList<>();
 		if (event == null) {
 			return result;
@@ -180,9 +214,18 @@ public final class AddonRegistry {
 				result.add(slot.action().elements());
 			}
 		}
+		return result;
+	}
+
+	/** Кастомные триггеры {@code v0…v3}, чьё условие совпало с событием (в порядке слотов). */
+	public static List<AddonCustomTrigger> matchedCustomTriggers(TwitchEvent event) {
+		List<AddonCustomTrigger> result = new ArrayList<>();
+		if (event == null) {
+			return result;
+		}
 		for (AddonCustomTrigger trigger : customTriggers()) {
 			if (matches(trigger.trigger(), event, "кастомный триггер " + trigger.slot())) {
-				result.addAll(trigger.actions());
+				result.add(trigger);
 			}
 		}
 		return result;

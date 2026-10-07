@@ -42,6 +42,9 @@ class ActionListScreen extends BaseScreen {
 		if (kind == ActionKind.TIER) {
 			keys.sort((a, b) -> Integer.compare(parseInt(a), parseInt(b)));
 		}
+		if (kind == ActionKind.SUB_TIER) {
+			keys.sort((a, b) -> Integer.compare(tierOrder(a), tierOrder(b)));
+		}
 		if (keys.isEmpty()) {
 			content.addChild(Widgets.label(font, "Список пуст — нажми «Добавить»"));
 		}
@@ -76,12 +79,23 @@ class ActionListScreen extends BaseScreen {
 			case TIER -> tierType == TwitchEvent.Type.DONATION
 					? "Ключ — сумма «от» в валюте " + mod.config().donations.currency + ". Срабатывает самый большой порог, не превышающий сумму доната."
 					: "Срабатывает самый большой порог, не превышающий значение события.";
+			case SUB_TIER -> "Ключ — уровень подписки (1, 2, 3 или prime). Действие выполняется вместо базового,"
+					+ " если уровень совпал (для ресаба и подарков — когда ни один порог по количеству не подошёл).";
 			default -> "";
 		};
 	}
 
 	private MutableComponent describe(String key, ModConfig.Action action) {
-		MutableComponent text = Component.literal(kind == ActionKind.TIER ? "от " + key : key.equals("*") ? "* (любая другая)" : key)
+		String label;
+		if (kind == ActionKind.TIER) {
+			label = "от " + key;
+		} else if (kind == ActionKind.SUB_TIER) {
+			String tier = ModConfig.normalizeSubTier(key);
+			label = "Tier " + (tier == null ? key : tier.equals("prime") ? "Prime" : tier);
+		} else {
+			label = key.equals("*") ? "* (любая другая)" : key;
+		}
+		MutableComponent text = Component.literal(label)
 				.withStyle(action.enabled ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY);
 		StringBuilder extra = new StringBuilder();
 		if (kind == ActionKind.REWARD && action.cost > 0) {
@@ -147,7 +161,27 @@ class ActionListScreen extends BaseScreen {
 					default -> TwitchEvent.test(TwitchEvent.Type.CHEER, "TestViewer", value, "Cheer! Держи!", "", "");
 				};
 			}
+			case SUB_TIER -> {
+				String tier = ModConfig.normalizeSubTier(key) == null ? "1" : ModConfig.normalizeSubTier(key);
+				TwitchEvent.Type type = tierType == null ? TwitchEvent.Type.SUBSCRIBE : tierType;
+				yield switch (type) {
+					case RESUB -> TwitchEvent.test(type, "TestViewer", 6, "Классный стрим!", "", tier);
+					case GIFT_SUB -> TwitchEvent.test(type, "TestViewer", 1, "", "", tier);
+					default -> TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", tier);
+				};
+			}
 			default -> TwitchEvent.test(TwitchEvent.Type.FOLLOW, "TestViewer", 0, "", "", "");
+		};
+	}
+
+	/** Порядок уровней подписки для сортировки списка: 1, 2, 3, prime. */
+	private static int tierOrder(String key) {
+		return switch (ModConfig.normalizeSubTier(key)) {
+			case "1" -> 0;
+			case "2" -> 1;
+			case "3" -> 2;
+			case "prime" -> 3;
+			default -> 4;
 		};
 	}
 

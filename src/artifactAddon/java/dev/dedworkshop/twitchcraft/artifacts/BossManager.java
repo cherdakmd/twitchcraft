@@ -73,11 +73,8 @@ public final class BossManager {
 		}
 		String bossName = boss == null ? String.valueOf(entity.getName().getString()) : boss.title();
 		ArtifactStore store = store();
-		store.bossActiveId = "";
-		store.bossActiveName = "";
 		store.bossDefeats++;
-		store.save();
-		removeBossBar();
+		clearActive(store);
 
 		ArtifactConfig config = addon.config();
 		ArtifactConfig.Bosses.Texts texts = config == null || config.bosses == null
@@ -90,8 +87,12 @@ public final class BossManager {
 		publish(hookEvent(TwitchEvent.GAME_BOSS_DEFEAT, killer.isBlank() ? bossName : killer, bossName,
 				killer.isBlank() ? "" : killer, (int) Math.min(Integer.MAX_VALUE, store.bossDefeats)));
 
-		// Артефакт за победу — с шансом из настроек (в серверном аддоне 50 %)
+		// Артефакт за победу — с шансом из настроек (в серверном аддоне 50 %).
+		// Выдача за боссов выключена в drops.bossKills — не выдаём и здесь.
 		int chance = config == null || config.bosses == null ? 50 : config.bosses.artifactChancePercent;
+		if (config != null && config.drops != null && !config.drops.bossKills) {
+			chance = 0;
+		}
 		if (boss != null && chance > 0 && random.nextInt(100) < chance) {
 			addon.drop("boss", killer.isBlank() ? "" : killer);
 		}
@@ -139,9 +140,8 @@ public final class BossManager {
 			return;
 		}
 		// Расписание
-		long intervalMs = Math.max(60, settings.spawnIntervalSeconds) * 1000L;
 		if (store.bossNextAt <= 0) {
-			store.bossNextAt = now + intervalMs;
+			store.bossNextAt = nextAttemptAt(now, settings.spawnIntervalSeconds);
 			store.save();
 		}
 		long announceBeforeMs = Math.max(0, settings.announceBeforeSeconds) * 1000L;
@@ -169,6 +169,17 @@ public final class BossManager {
 			if (boss == null) {
 				boss = BossCatalog.random(random, settings.disabled);
 			}
+			if (boss == null) {
+				// Вызывать некого: все боссы перечислены в `disabled`. Откладываем попытку,
+				// иначе расписание «догоняло» бы само себя каждую секунду.
+				store.bossNextAt = nextAttemptAt(now, settings.spawnIntervalSeconds);
+				store.bossPlannedId = "";
+				announced = false;
+				store.save();
+				log().warn("Боссы: все боссы выключены в разделе `disabled` — следующий вызов отложен на {}",
+						settings.spawnIntervalSeconds);
+				return;
+			}
 			spawn(client, boss, settings, store.bossX, store.bossZ);
 		}
 	}
@@ -178,8 +189,23 @@ public final class BossManager {
 		BossCatalog.Boss boss = activeBoss();
 		ArtifactStore store = store();
 		if (boss == null) {
-			store.bossActiveId = "";
+			clearActive(store);
+			return;
+		}
+		if (store.bossSpawnAt <= 0) {
+			store.bossSpawnAt = now; // запись из файла состояния прежней версии: отсчёт начинается сейчас
 			store.save();
+		}
+		if (expired(store.bossSpawnAt, now, settings.maxAliveSeconds)) {
+			// Победа не засчитана: на чужом сервере событие смерти сущности клиент не получает,
+			// босс мог despawn'нуться или быть убитым командой. Без этого «один босс за раз»
+			// блокировал расписание до ручной /artifact boss stop.
+			String name = store.bossActiveName.isBlank() ? boss.name() : store.bossActiveName;
+			long foughtMs = Math.max(0, now - store.bossSpawnAt);
+			clearActive(store);
+			ArtifactChat.warn("Бой с «" + name + "» длился дольше " + settings.maxAliveSeconds
+					+ " с — снимаю запись, следующий босс пойдёт по расписанию. Убрать самого босса: §e/artifact boss stop");
+			log().info("Боссы: «{}» активен {} мин — запись снята, победа не засчитана", name, foughtMs / 60_000L);
 			return;
 		}
 		LocalPlayer player = client == null ? null : client.player;
@@ -288,7 +314,7 @@ public final class BossManager {
 		store.bossSpawnAt = System.currentTimeMillis();
 		store.bossSpawned++;
 		store.bossPlannedId = "";
-		store.bossNextAt = System.currentTimeMillis() + Math.max(60, settings.spawnIntervalSeconds) * 1000L;
+		store.bossNextAt = nextAttemptAt(System.currentTimeMillis(), settings.spawnIntervalSeconds);
 		store.save();
 		announced = false;
 		lastSkillAt = System.currentTimeMillis();
@@ -301,6 +327,11 @@ public final class BossManager {
 			commands.add(attribute(settings.attributes.movementSpeed, boss, x, y, z, settings, boss.speed()));
 		}
 		if (settings.bossBar) {
+			// Полосу мог оставить прошлый запуск (игра закрылась во время боя): в мире она уже есть,
+			// а add на существующий id ошибается — и полоса не появлялась бы до следующей победы.
+			if (addon.takeStaleBossBar()) {
+				commands.add("bossbar remove " + BOSS_BAR_ID);
+			}
 			commands.add("bossbar add " + BOSS_BAR_ID + " {\"text\":\"" + boss.name() + "\"}");
 			commands.add("bossbar set " + BOSS_BAR_ID + " color red");
 			commands.add("bossbar set " + BOSS_BAR_ID + " max 1");
@@ -324,6 +355,40 @@ public final class BossManager {
 				boss.skills().size());
 	}
 
+	/**
+	 * Снять запись о вызванном боссе: за ним больше не следим, расписание продолжается.
+	 * Используется при {@code /artifact boss stop}, когда победу не удалось засчитать
+	 * ({@link #expired}) и когда id пропал из каталога ({@code disabled}, обновление аддона).
+	 */
+	private void clearActive(ArtifactStore store) {
+		boolean tracked = !store.bossActiveId.isBlank();
+		store.bossActiveId = "";
+		store.bossActiveName = "";
+		store.bossSpawnAt = 0;
+		store.bossPlannedId = "";
+		store.save();
+		announced = false;
+		if (tracked) {
+			removeBossBar();
+		}
+	}
+
+	/** Когда пробовать следующий вызов: интервал не короче минуты (см. {@code normalize()}). */
+	public static long nextAttemptAt(long now, long spawnIntervalSeconds) {
+		return now + Math.max(60, spawnIntervalSeconds) * 1000L;
+	}
+
+	/**
+	 * Истекло ли время ожидания победы. На чужом сервере клиент не видит смерть сущности,
+	 * босс мог исчезнуть сам (despawn, чанки) или быть убитым чужой командой — без снимка
+	 * записи правило «один босс за раз» блокировало бы расписание до {@code /artifact boss stop}.
+	 *
+	 * @param maxAliveSeconds 0 — запись не снимать никогда
+	 */
+	public static boolean expired(long spawnAt, long now, long maxAliveSeconds) {
+		return spawnAt > 0 && maxAliveSeconds > 0 && now - spawnAt >= maxAliveSeconds * 1000L;
+	}
+
 	/** Убрать босса и полосу (команда {@code /artifact boss stop}). */
 	public boolean stop(boolean silent) {
 		ArtifactStore store = store();
@@ -335,10 +400,7 @@ public final class BossManager {
 		if (boss != null) {
 			addon.context().runCommand("kill " + boss.selector());
 		}
-		store.bossActiveId = "";
-		store.bossActiveName = "";
-		store.save();
-		removeBossBar();
+		clearActive(store);
 		if (!silent) {
 			ArtifactChat.warn("Босс" + (name == null || name.isBlank() ? "" : " «" + name + "»") + " убран, следующий — по расписанию.");
 		}
@@ -393,6 +455,11 @@ public final class BossManager {
 			BossCatalog.Boss boss = activeBoss();
 			lines.add("  §a● §f" + boss.title() + " §7— X " + (long) store.bossX + " Z " + (long) store.bossZ
 					+ ", навыки: " + (boss.skills().isEmpty() ? "нет" : String.join(", ", boss.skills())));
+			long foughtMin = Math.max(0, (System.currentTimeMillis() - store.bossSpawnAt) / 60_000L);
+			long limitMin = settings.maxAliveSeconds > 0 ? Math.max(1, settings.maxAliveSeconds / 60) : 0;
+			lines.add("  §7Бой идёт: §f" + foughtMin + " мин§7, " + (limitMin > 0
+					? "запись о бое снимется через §f" + limitMin + " мин §8(bosses.maxAliveSeconds)§7"
+					: "лимит боя выключен — жду победы вечно"));
 		} else {
 			lines.add("  §7Сейчас босса нет. Следующий: §f" + nextText()
 					+ "§7, место: X " + (long) store.bossX + " Z " + (long) store.bossZ);

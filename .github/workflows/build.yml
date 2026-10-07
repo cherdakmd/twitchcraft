@@ -1,6 +1,7 @@
 # Автосборка TwitchCraft на GitHub Actions: при каждом пуше в main (и по тегу v*) собирается мод
 # и прогоняются автотесты из dev-tests. Готовые jar (мод + аддон «Артефакты») лежат в «Artifacts»
-# внизу страницы запуска.
+# внизу страницы запуска, а по тегу v* они дополнительно прикрепляются к GitHub Release (шаг
+# «Jar в релиз») — артефакты запуска живут 90 дней, игрокам нужна постоянная ссылка.
 #
 # Для pull request дополнительно обновляется один комментарий с отчётом сборки: если сборка
 # или тесты упали — в комментарии видно текст ошибки (логи самих запусков скачать не всегда удобно).
@@ -21,6 +22,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # публикация релиза (gh release upload) + отчёт в pull request
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Исходники
         uses: actions/checkout@v4
@@ -72,6 +77,26 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
           if-no-files-found: error
+
+      # Релиз: по тегу v* кладём jar прямо в GitHub Release. Release можно создать и заранее
+      # (тогда шаг только прикрепит файлы), и вообще без него — шаг создаст сам.
+      - name: Jar в релиз (только тег v*)
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          VERSION="${TAG#v}"
+          MOD_JAR="build/libs/twitchcraft-${VERSION}.jar"
+          ADDON_JAR="$(ls build/libs/artifact-addon-*.jar | head -1)"
+          test -f "$MOD_JAR"
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$REPO" --title "TwitchCraft ${VERSION}" --notes "Minecraft 26.3 · Fabric · Fabric API 0.161.0+26.3. Положи \`twitchcraft-${VERSION}.jar\` (и, если нужны артефакты с боссами, \`$(basename "$ADDON_JAR")\`) в \`.minecraft/mods\`. Что изменилось — в CHANGELOG.md репозитория."
+          fi
+          gh release upload "$TAG" --repo "$REPO" --clobber "$MOD_JAR" "$ADDON_JAR"
+          echo "Релиз ${TAG}: $(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | tr '\n' ' ')"
 
       # Отчёт в PR: тот же комментарий обновляется при каждом запуске (без спама).
       - name: Отчёт в pull request

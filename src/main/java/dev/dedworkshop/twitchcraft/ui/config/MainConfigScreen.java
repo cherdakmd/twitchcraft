@@ -96,6 +96,8 @@ class MainConfigScreen extends BaseScreen {
 		rows.addChild(Widgets.button("Клипы и метки", Widgets.HALF, () -> open(new ClipsScreen(mod, this)),
 				"Автоклип и метка стрима при смерти, донате, боссе; F10 — клип вручную"));
 
+		rows.addChild(Widgets.button("Триггеры аддонов", Widgets.HALF, () -> open(new AddonTriggersScreen(mod, this)),
+				"Кастомные триггеры аддонов v0…v3: посмотреть и привязать к ним действия из конфига"));
 		rows.addChild(Widgets.button("Таймеры чата", Widgets.HALF, () -> open(new TimersScreen(mod, this)),
 				"Напоминания в чат раз в N минут, когда чат живой: ценник, соцсети..."));
 

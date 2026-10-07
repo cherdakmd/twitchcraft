@@ -105,6 +105,9 @@ class ActionEditScreen extends BaseScreen {
 		if (kind == ActionKind.GAME_EVENT) {
 			row(show, r++, "Сообщение в чат Twitch и VK", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v,
 					"💀 {cause} — смерть №{deaths}"));
+		} else if (kind == ActionKind.ADDON_TRIGGER) {
+			row(show, r++, "Сообщение в чат", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v,
+					"Сработал триггер {trigger}!"));
 		} else {
 			row(show, r++, "Ответ в чат Twitch", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v, "Спасибо, {user}!"));
 		}
@@ -112,6 +115,11 @@ class ActionEditScreen extends BaseScreen {
 		if (kind == ActionKind.GAME_EVENT) {
 			content.addChild(Widgets.gray(font, "Переменные: {cause} {deaths} {deaths_total} {advancement} {advancement_text} {boss} {killer} {dimension} "
 					+ "{session_time} {stream_time} {viewers} {player}"));
+		}
+		if (kind == ActionKind.ADDON_TRIGGER) {
+			content.addChild(Widgets.gray(font, "Переменные: {trigger} — имя триггера, {slot} — слот (v0…v3); плюс переменные события, "
+					+ "на котором сработал триггер ({user}, {amount}, {message}…). Сообщение уходит в чат, откуда пришло событие "
+					+ "(для событий игры — в чаты Twitch и VK)."));
 		}
 
 		section(content, "Команды (по одной на строку; «delay N» — пауза N тиков)");
@@ -187,13 +195,21 @@ class ActionEditScreen extends BaseScreen {
 					return;
 				}
 			}
+			if (kind == ActionKind.SUB_TIER && ModConfig.normalizeSubTier(newKey) == null) {
+				Chat.error("Уровень подписки — 1, 2, 3 или prime.");
+				return;
+			}
 			if (kind == ActionKind.CHAT_COMMAND && newKey.contains(" ")) {
 				Chat.error("Имя команды — одно слово без пробелов.");
 				return;
 			}
 		}
 		ModConfig.normalizeAction(draft);
-		onSave.accept(kind.hasKey() ? newKey : originalKey, draft);
+		String saveKey = newKey;
+		if (kind == ActionKind.SUB_TIER) {
+			saveKey = ModConfig.normalizeSubTier(newKey); // «Tier 2» / «2000» → «2»
+		}
+		onSave.accept(kind.hasKey() ? saveKey : originalKey, draft);
 		onClose();
 	}
 

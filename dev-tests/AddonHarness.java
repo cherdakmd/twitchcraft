@@ -2,6 +2,7 @@ package dev.dedworkshop.twitchcraft.api;
 
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,6 +86,34 @@ public class AddonHarness {
 		Map<String, String> values = AddonRegistry.variables(cheer(10));
 		check("падающая переменная пропущена", !values.containsKey("broken_value"));
 		check("остальные переменные живы", "ок".equals(values.get("good_value")));
+
+		// Значение переменной попадает в команды Minecraft, которые мод выполняет с правами
+		// оператора, — значит, чистится так же, как тексты зрителей.
+		AddonRegistry.registerVariable("addon-a", "dangerous", event -> "строка\nс \"кавычкой\" и \u00a7dкодом");
+		check("значение переменной очищается (без переносов, кавычек и \u00a7)",
+				"строка с 'кавычкой' и dкодом".equals(AddonRegistry.variables(cheer(1)).get("dangerous")));
+		AddonRegistry.registerVariable("addon-a", "long_value", event -> "х".repeat(500));
+		check("длинное значение обрезается до 200 символов",
+				AddonRegistry.variables(cheer(1)).get("long_value").length() == 200);
+
+		// applyVariables: аддон занимает только свободные имена — системные плейсхолдеры не перехватывает
+		AddonRegistry.registerVariable("addon-a", "user", event -> "подмена");
+		AddonRegistry.registerVariable("addon-a", "own_var", event -> "своё");
+		Map<String, String> vars = new LinkedHashMap<>();
+		vars.put("user", "Steve");
+		vars.put("amount", "100");
+		AddonRegistry.applyVariables(vars, cheer(100));
+		check("системный плейсхолдер {user} не перехвачен", "Steve".equals(vars.get("user")));
+		check("прочие системные переменные целы", "100".equals(vars.get("amount")));
+		check("свободное имя занято переменной аддона", "своё".equals(vars.get("own_var")));
+		boolean nullsSafe = true;
+		try {
+			AddonRegistry.applyVariables(null, cheer(1));
+			AddonRegistry.applyVariables(vars, null);
+		} catch (Exception e) {
+			nullsSafe = false;
+		}
+		check("applyVariables не падает на null-карту и null-событие", nullsSafe);
 
 		// ---------- Хук 2: действия ----------
 		section("Хук 2: действия (триггер + элементы)");
@@ -242,6 +271,28 @@ public class AddonHarness {
 		check("триггер игры не ловит смерть", !AddonRegistry.elementsFor(boss(TwitchEvent.GAME_DEATH)).contains(bossElements));
 		check("every() ловит всё", AddonTrigger.every().matches(follow()) && AddonTrigger.every().matches(donate(1)));
 		check("сводка показывает счётчики", AddonRegistry.summary().contains("переменных:") && AddonRegistry.summary().contains("/4"));
+
+		// ---------- Что видит мод: сработавшие кастомные триггеры ----------
+		section("Хук 4: сработавшие триггеры и действия из конфига");
+		check("matchedCustomTriggers: рейд 30 → слот v1",
+				AddonRegistry.matchedCustomTriggers(raid(30)).stream().anyMatch(t -> t.index() == 1));
+		check("matchedCustomTriggers: рейд 30 — ровно один триггер",
+				AddonRegistry.matchedCustomTriggers(raid(30)).size() == 1);
+		check("matchedCustomTriggers: рейд 24 — ничего", AddonRegistry.matchedCustomTriggers(raid(24)).isEmpty());
+		check("matchedCustomTriggers: команда !артефакты → слот v2",
+				AddonRegistry.matchedCustomTriggers(command("артефакты", "")).stream().anyMatch(t -> t.index() == 2));
+		check("matchedCustomTriggers: падающее условие пропускается",
+				AddonRegistry.matchedCustomTriggers(donate(500)).isEmpty());
+		check("actionElementsFor: кастомные триггеры не попадают в список",
+				AddonRegistry.actionElementsFor(raid(30)).isEmpty());
+		check("actionElementsFor: обычные действия находятся",
+				AddonRegistry.actionElementsFor(follow()).contains(followElements));
+		check("elementsFor = обычные действия + действия кастомных триггеров",
+				AddonRegistry.elementsFor(raid(30)).size() == AddonRegistry.actionElementsFor(raid(30)).size() + 1);
+		check("elementsFor: обычные действия идут первыми",
+				!AddonRegistry.elementsFor(follow()).isEmpty() && AddonRegistry.elementsFor(follow()).get(0) == followElements);
+		check("elementsFor: null-событие — пусто", AddonRegistry.elementsFor(null).isEmpty()
+				&& AddonRegistry.matchedCustomTriggers(null).isEmpty() && AddonRegistry.actionElementsFor(null).isEmpty());
 
 		// ---------- Порядок и изоляция ----------
 		section("Порядок действий и изоляция");

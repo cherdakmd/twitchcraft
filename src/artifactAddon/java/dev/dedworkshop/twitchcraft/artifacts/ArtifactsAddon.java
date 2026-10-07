@@ -59,6 +59,8 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 	private boolean hooksRegistered;
 	private String lastArtifactName = "";
 
+	/** В мире осталась полоса босса от прошлого запуска — снять перед новым вызовом. */
+	private boolean staleBossBar;
 	private long lastScanAt;
 	private long lastCurseAt;
 	private long lastEffectsAt;
@@ -268,12 +270,24 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 					store.bossActiveName);
 			store.bossActiveId = "";
 			store.bossActiveName = "";
+			store.bossSpawnAt = 0;
+			// Полосу /bossbar аддон оставил в мире: убрать её при первом же следующем вызове
+			staleBossBar = true;
 		}
 		if (store.bossNextAt <= 0) {
 			long interval = config.bosses == null ? 21600 : config.bosses.spawnIntervalSeconds;
-			store.bossNextAt = System.currentTimeMillis() + Math.max(60, interval) * 1000L;
+			store.bossNextAt = BossManager.nextAttemptAt(System.currentTimeMillis(), interval);
 		}
 		store.save();
+	}
+
+	/** true ровно один раз, если в мире осталась полоса босса от прошлого запуска. */
+	public boolean takeStaleBossBar() {
+		if (!staleBossBar) {
+			return false;
+		}
+		staleBossBar = false;
+		return true;
 	}
 
 	// ---------- Хуки API аддонов ----------
@@ -397,6 +411,12 @@ public final class ArtifactsAddon implements TwitchCraftAddon {
 			Integer slot = found.get(artifact.id);
 			artifact.slot = slot == null ? -1 : slot;
 			artifact.present = slot != null;
+		}
+		// «Выгоревший» артефакт (его не удалось убрать из инвентаря) больше не действует:
+		// как только предмета нет, снимаем запись — иначе она вечно держала бы место в лимите
+		// maxArtifacts и оставалась бы в файле состояния.
+		if (store.forgetBurntWithoutItem() > 0) {
+			store.save();
 		}
 	}
 

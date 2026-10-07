@@ -108,11 +108,11 @@ public final class TwitchCommands {
 										.then(literal("on").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), true)))
 										.then(literal("off").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), false)))
 										.then(literal("toggle").executes(ctx -> module(mod, StringArgumentType.getString(ctx, "id"), null)))))
-						.then(literal("addons")
-								.executes(ctx -> addons(""))
-								.then(literal("actions").executes(ctx -> addons("actions")))
-								.then(literal("rewards").executes(ctx -> addons("rewards")))
-								.then(literal("triggers").executes(ctx -> addons("triggers")))
+					.then(literal("addons")
+							.executes(ctx -> addons(mod, ""))
+							.then(literal("actions").executes(ctx -> addons(mod, "actions")))
+							.then(literal("rewards").executes(ctx -> addons(mod, "rewards")))
+							.then(literal("triggers").executes(ctx -> addons(mod, "triggers")))
 								.then(literal("fire")
 										.then(argument("slot", StringArgumentType.word()).suggests(TRIGGER_SLOTS)
 												.executes(ctx -> addonsFire(mod, StringArgumentType.getString(ctx, "slot"))))))
@@ -335,20 +335,28 @@ public final class TwitchCommands {
 						.then(literal("test")
 								.then(literal("follow").executes(ctx -> test(mod,
 										TwitchEvent.test(TwitchEvent.Type.FOLLOW, "TestViewer", 0, "", "", ""))))
-								.then(literal("sub").executes(ctx -> test(mod,
-										TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1"))))
+					.then(literal("sub")
+							.executes(ctx -> test(mod,
+									TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1")))
+							.then(argument("tier", StringArgumentType.word())
+									.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "",
+											StringArgumentType.getString(ctx, "tier"))))))
 								.then(literal("resub")
 										.executes(ctx -> test(mod,
 												TwitchEvent.test(TwitchEvent.Type.RESUB, "TestViewer", 6, "Классный стрим!", "", "1")))
 										.then(argument("months", IntegerArgumentType.integer(1))
 												.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.RESUB, "TestViewer",
 														IntegerArgumentType.getInteger(ctx, "months"), "Классный стрим!", "", "1")))))
-								.then(literal("gift")
-										.executes(ctx -> test(mod,
-												TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer", 5, "", "", "1")))
-										.then(argument("count", IntegerArgumentType.integer(1))
-												.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
-														IntegerArgumentType.getInteger(ctx, "count"), "", "", "1")))))
+					.then(literal("gift")
+							.executes(ctx -> test(mod,
+									TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer", 5, "", "", "1")))
+							.then(argument("count", IntegerArgumentType.integer(1))
+									.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
+											IntegerArgumentType.getInteger(ctx, "count"), "", "", "1")))
+									.then(argument("tier", StringArgumentType.word())
+											.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
+													IntegerArgumentType.getInteger(ctx, "count"), "", "",
+													StringArgumentType.getString(ctx, "tier")))))))
 								.then(literal("cheer")
 										.executes(ctx -> test(mod,
 												TwitchEvent.test(TwitchEvent.Type.CHEER, "TestViewer", 100, "Cheer100 Держи!", "", "")))
@@ -574,7 +582,7 @@ public final class TwitchCommands {
 	// ---------- Модули ----------
 
 	/** Список подключённых аддонов (отдельные моды вроде «Артефактов»). */
-	private static int addons(String section) {
+	private static int addons(TwitchCraftClient mod, String section) {
 		java.util.List<String> ids = dev.dedworkshop.twitchcraft.api.AddonManager.loadedIds();
 		if (ids.isEmpty()) {
 			Chat.info("Аддоны не подключены. Аддон — отдельный мод-файл, который ставится рядом с TwitchCraft "
@@ -612,14 +620,18 @@ public final class TwitchCommands {
 				if (triggers.isEmpty()) {
 					Chat.info("Кастомные триггеры не зарегистрированы (у аддона их может быть до "
 							+ dev.dedworkshop.twitchcraft.api.AddonRegistry.MAX_CUSTOM_TRIGGERS + ").");
+					Chat.info("§7Привязать своё действие к слоту: §f/twitch config §7→ «Триггеры аддонов» (раздел конфига §faddonTriggers§7).");
 					return 1;
 				}
 				Chat.info("§5§lКастомные триггеры аддонов §7(" + triggers.size() + ")");
 				for (var trigger : triggers) {
+					boolean bound = mod.config().findAddonTriggerAction(trigger.slot()) != null;
 					Chat.info("  §a● §f" + trigger.slot() + "§7 — " + trigger.name() + " §8[" + trigger.trigger() + "]§7, "
-							+ "действий: " + trigger.actions().size() + (trigger.description().isBlank() ? "" : ", " + trigger.description()));
+							+ "действий: " + trigger.actions().size()
+							+ (bound ? ", §aпривязано действие из конфига" : ", §8действие не привязано")
+							+ (trigger.description().isBlank() ? "" : ", " + trigger.description()));
 				}
-				Chat.info("§7Запустить вручную: §f/twitch addons fire v0");
+				Chat.info("§7Запустить вручную: §f/twitch addons fire v0§7; привязать своё действие: §f/twitch config §7→ «Триггеры аддонов»");
 				return 1;
 			}
 			default -> {
@@ -648,22 +660,11 @@ public final class TwitchCommands {
 			Chat.error("Слот v" + index + " пуст: этот кастомный триггер никто не зарегистрировал.");
 			return 0;
 		}
-		String player = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getName().getString() : "Игрок";
-		TwitchEvent event = TwitchEvent.test(TwitchEvent.Type.CHAT_COMMAND, player, 0, "", trigger.name(), "");
 		if (mod.events() == null) {
 			Chat.error("Обработчик событий ещё не запущен — попробуй в мире.");
 			return 0;
 		}
-		int fired = 0;
-		java.util.Map<String, String> vars = new java.util.LinkedHashMap<>(mod.globalPlaceholders());
-		vars.putAll(dev.dedworkshop.twitchcraft.api.AddonRegistry.variables(event));
-		for (var elements : trigger.actions()) {
-			if (elements == null || elements.isEmpty()) {
-				continue;
-			}
-			mod.events().runner().run(event, elements.toConfigAction(), vars, () -> { });
-			fired++;
-		}
+		int fired = mod.events().fireCustomTrigger(index);
 		Chat.success("Кастомный триггер v" + index + " «" + trigger.name() + "» запущен вручную (действий: " + fired + ").");
 		return 1;
 	}

@@ -200,6 +200,68 @@ public class LogicTest {
                 && joined.contains("clientID") && joined.contains("comands") && joined.contains("\"abc\""));
         System.out.println("     -> " + warnings);
 
+        // addonTriggers: действия из конфига, привязанные к кастомным триггерам аддонов (слоты v0…v3)
+        String atJson = "{\"addonTriggers\":{\"v2\":{\"message\":\"Босс {trigger} появился!\",\"cooldown\":30},"
+                + "\"V0\":{\"commands\":[\"say hi\"]},\"1\":{\"title\":\"Слот без буквы\"},\"v9\":{},\"oops\":{}}}";
+        ModConfig at = ModConfig.fromJson(atJson);
+        check("addonTriggers: слот v2 находится", at.findAddonTriggerAction("v2") != null
+                && "Босс {trigger} появился!".equals(at.findAddonTriggerAction("v2").action().message)
+                && "addonTrigger:v2".equals(at.findAddonTriggerAction("v2").key())
+                && at.findAddonTriggerAction("v2").action().cooldown == 30);
+        check("addonTriggers: поиск не смотрит на регистр, пробелы и букву v", at.findAddonTriggerAction(" V2 ") != null
+                && at.findAddonTriggerAction("0") != null && at.findAddonTriggerAction("1") != null);
+        check("addonTriggers: слот вне диапазона — null", at.findAddonTriggerAction("v9") == null
+                && at.findAddonTriggerAction("v4") == null && at.findAddonTriggerAction("-1") == null);
+        check("addonTriggers: мусор и пустой конфиг — null", at.findAddonTriggerAction(null) == null
+                && at.findAddonTriggerAction("абв") == null && ModConfig.createDefault().findAddonTriggerAction("v0") == null);
+        check("normalizeTriggerSlot приводит ключи", "v1".equals(ModConfig.normalizeTriggerSlot("V1"))
+                && "v0".equals(ModConfig.normalizeTriggerSlot(" 0 ")) && ModConfig.normalizeTriggerSlot("v4") == null
+                && ModConfig.normalizeTriggerSlot(null) == null && ModConfig.normalizeTriggerSlot("x") == null);
+        List<String> atWarnings = ModConfig.findWarnings(atJson);
+        check("addonTriggers: предупреждения на неверные слоты (v9, oops)", atWarnings.size() == 2
+                && String.join(" | ", atWarnings).contains("\"v9\"") && String.join(" | ", atWarnings).contains("\"oops\""));
+        check("addonTriggers: верные ключи без предупреждений",
+                ModConfig.findWarnings("{\"addonTriggers\":{\"v0\":{\"message\":\"hi\"},\"3\":{}}}").isEmpty());
+        check("addonTriggers: переживает JSON-раундтрип", ModConfig.fromJson(at.toJson()).findAddonTriggerAction("v2") != null);
+        ModConfig atClean = ModConfig.createDefault();
+        atClean.addonTriggers.put("v2", new ModConfig.Action("Босс появился!", "", ""));
+        check("addonTriggers: свой вывод без предупреждений", ModConfig.findWarnings(atClean.toJson()).isEmpty()
+                && "Босс появился!".equals(ModConfig.fromJson(atClean.toJson()).findAddonTriggerAction("v2").action().message));
+
+        // byTier: разные действия по уровню подписки (1/2/3/prime) — ветвление по {tier}
+        ModConfig bt = ModConfig.createDefault();
+        bt.subscribe = new ModConfig.Action("базовая подписка", "", "");
+        bt.resub = new ModConfig.Action("базовый ресаб", "", "");
+        bt.giftSub = new ModConfig.Action("базовые подарки", "", "");
+        bt.subscribeByTier.put("3", new ModConfig.Action("подписка Tier 3", "", ""));
+        bt.subscribeByTier.put("prime", new ModConfig.Action("подписка Prime", "", ""));
+        bt.resubByTier.put("2", new ModConfig.Action("ресабы Tier 2", "", ""));
+        bt.giftSubByTier.put("3", new ModConfig.Action("подарки Tier 3", "", ""));
+        check("byTier: подписка Tier 3 заменяет базовую", "подписка Tier 3".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "3")).action().message)
+                && "subscribe:tier:3".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "3")).key()));
+        check("byTier: Tier 1 без переопределения — базовая", "базовая подписка".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "1")).action().message)
+                && "subscribe".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "1")).key()));
+        check("byTier: Prime не различает регистр", "подписка Prime".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "Prime")).action().message));
+        check("byTier: ресаб своего уровня, когда пороги не подошли", "ресабы Tier 2".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.RESUB, "V", 6, "привет", "", "2")).action().message));
+        bt.resubTiers.put("12", new ModConfig.Action("12 месяцев", "", ""));
+        check("byTier: порог месяцев важнее уровня ресаба", "12 месяцев".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.RESUB, "V", 12, "привет", "", "2")).action().message));
+        check("byTier: подарки своего уровня, когда пороги не подошли", "подарки Tier 3".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "V", 5, "", "", "3")).action().message));
+        bt.giftSubTiers.put("5", new ModConfig.Action("5 подарков", "", ""));
+        check("byTier: порог количества подарков важнее уровня", "5 подарков".equals(bt.findAction(TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "V", 5, "", "", "3")).action().message));
+        check("normalizeSubTier приводит варианты", "1".equals(ModConfig.normalizeSubTier("1000")) && "2".equals(ModConfig.normalizeSubTier("Tier 2"))
+                && "prime".equals(ModConfig.normalizeSubTier(" PRIME ")) && ModConfig.normalizeSubTier("4") == null
+                && ModConfig.normalizeSubTier(null) == null && ModConfig.normalizeSubTier("") == null);
+        bt.subscribeByTier.put("1000", new ModConfig.Action("подписка уровня 1 (ключ 1000)", "", ""));
+        check("byTier: ключи конфига тоже нормализуются (1000 = 1)", "подписка уровня 1 (ключ 1000)".equals(
+                bt.findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "1")).action().message));
+        List<String> btWarnings = ModConfig.findWarnings("{\"subscribeByTier\":{\"2\":{\"message\":\"hi\"},\"5\":{}},\"resubByTier\":{\"x\":{}}}");
+        check("byTier: предупреждения на неверные уровни", btWarnings.size() == 2
+                && String.join(" | ", btWarnings).contains("\"5\"") && String.join(" | ", btWarnings).contains("\"x\""));
+        check("byTier: верные уровни без предупреждений",
+                ModConfig.findWarnings("{\"subscribeByTier\":{\"1\":{},\"prime\":{}},\"giftSubByTier\":{\"3\":{}}}").isEmpty());
+        check("byTier: переживает JSON-раундтрип", "подписка Tier 3".equals(ModConfig.fromJson(bt.toJson())
+                .findAction(TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "V", 1, "", "", "3")).action().message));
+
         System.out.println("== Chat helpers ==");
         check("ChatSender.clean strips colors/newlines", ChatSender.clean("§aПривет &c{user}\nмир").equals("Привет {user} мир"));
         check("ChatSender.clean neutralizes /commands", ChatSender.clean("/ban x").startsWith(" /"));

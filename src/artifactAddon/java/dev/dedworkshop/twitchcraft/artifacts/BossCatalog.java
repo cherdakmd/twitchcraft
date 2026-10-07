@@ -103,7 +103,8 @@ public final class BossCatalog {
 	public static Boss random(Random random, List<String> disabled) {
 		List<Boss> pool = new java.util.ArrayList<>();
 		for (Boss boss : BOSSES) {
-			if (disabled == null || disabled.stream().noneMatch(id -> boss.id().equalsIgnoreCase(id.trim()))) {
+			if (disabled == null || disabled.stream()
+					.noneMatch(id -> id != null && !id.isBlank() && boss.id().equalsIgnoreCase(id.trim()))) {
 				pool.add(boss);
 			}
 		}

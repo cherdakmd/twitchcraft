@@ -30,6 +30,7 @@ class EventsScreen extends BaseScreen {
 	protected void buildContent(LinearLayout content) {
 		ModConfig config = mod.config();
 		content.addChild(Widgets.gray(font, "Основное действие срабатывает всегда; порог заменяет его при большом значении"));
+		content.addChild(Widgets.gray(font, "Уровни (1/2/3/Prime) — своё действие для уровня подписки, если порог не сработал"));
 		content.addChild(SpacerElement.height(2));
 
 		GridLayout grid = new GridLayout().columnSpacing(4).rowSpacing(4);
@@ -37,21 +38,28 @@ class EventsScreen extends BaseScreen {
 		int r = 0;
 
 		eventRow(grid, r++, Module.FOLLOWS, "Фоллов", () -> config.follow, a -> config.follow = a,
-				() -> TwitchEvent.test(TwitchEvent.Type.FOLLOW, "TestViewer", 0, "", "", ""), null, null, null);
+				() -> TwitchEvent.test(TwitchEvent.Type.FOLLOW, "TestViewer", 0, "", "", ""), null, null, null,
+				null, null, null);
 		eventRow(grid, r++, Module.SUBSCRIPTIONS, "Подписка", () -> config.subscribe, a -> config.subscribe = a,
-				() -> TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1"), null, null, null);
+				() -> TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1"), null, null, null,
+				"Уровни подписки (1/2/3/Prime)", config.subscribeByTier, TwitchEvent.Type.SUBSCRIBE);
 		eventRow(grid, r++, Module.SUBSCRIPTIONS, "Продление (ресаб)", () -> config.resub, a -> config.resub = a,
 				() -> TwitchEvent.test(TwitchEvent.Type.RESUB, "TestViewer", 6, "Классный стрим!", "", "1"),
-				"Пороги ресаба (месяцев)", config.resubTiers, TwitchEvent.Type.RESUB);
+				"Пороги ресаба (месяцев)", config.resubTiers, TwitchEvent.Type.RESUB,
+				"Уровни ресаба (1/2/3/Prime)", config.resubByTier, TwitchEvent.Type.RESUB);
 		eventRow(grid, r++, Module.SUBSCRIPTIONS, "Подарочные сабы", () -> config.giftSub, a -> config.giftSub = a,
 				() -> TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer", 5, "", "", "1"),
-				"Пороги подарков (штук)", config.giftSubTiers, TwitchEvent.Type.GIFT_SUB);
+				"Пороги подарков (штук)", config.giftSubTiers, TwitchEvent.Type.GIFT_SUB,
+				"Уровни подарков (1/2/3/Prime)", config.giftSubByTier, TwitchEvent.Type.GIFT_SUB);
 		eventRow(grid, r++, Module.RAIDS, "Рейд", () -> config.raid, a -> config.raid = a,
 				() -> TwitchEvent.test(TwitchEvent.Type.RAID, "TestStreamer", 42, "", "", ""),
-				"Пороги рейда (зрителей)", config.raidTiers, TwitchEvent.Type.RAID);
-		eventRow(grid, r++, Module.BITS, "Битсы", null, null, null, "Пороги битсов", config.cheer, TwitchEvent.Type.CHEER);
+				"Пороги рейда (зрителей)", config.raidTiers, TwitchEvent.Type.RAID,
+				null, null, null);
+		eventRow(grid, r++, Module.BITS, "Битсы", null, null, null, "Пороги битсов", config.cheer, TwitchEvent.Type.CHEER,
+				null, null, null);
 		eventRow(grid, r++, null, "Донаты (" + config.donations.currency + ")", null, null, null,
-				"Эффекты за донаты (все сервисы)", config.donationTiers, TwitchEvent.Type.DONATION);
+				"Эффекты за донаты (все сервисы)", config.donationTiers, TwitchEvent.Type.DONATION,
+				null, null, null);
 
 		content.addChild(grid);
 		content.addChild(SpacerElement.height(6));
@@ -60,7 +68,8 @@ class EventsScreen extends BaseScreen {
 
 	private void eventRow(GridLayout grid, int row, Module module, String label,
 						  Supplier<ModConfig.Action> getter, Consumer<ModConfig.Action> setter, Supplier<TwitchEvent> sample,
-						  String tiersTitle, Map<String, ModConfig.Action> tiers, TwitchEvent.Type tierType) {
+						  String tiersTitle, Map<String, ModConfig.Action> tiers, TwitchEvent.Type tierType,
+						  String levelsTitle, Map<String, ModConfig.Action> levels, TwitchEvent.Type levelType) {
 		boolean enabled = module == null
 				? mod.isModuleEnabled(Module.DONATION_ALERTS) || mod.isModuleEnabled(Module.DONATE_PAY)
 				: mod.isModuleEnabled(module);
@@ -95,6 +104,13 @@ class EventsScreen extends BaseScreen {
 					"Отдельные действия для больших значений: от 100, от 1000..."), row, 3);
 		} else {
 			grid.addChild(SpacerElement.width(84), row, 3);
+		}
+		if (levels != null) {
+			grid.addChild(Widgets.button("Уровни (" + levels.size() + ")", 84,
+					() -> open(new ActionListScreen(mod, this, ActionKind.SUB_TIER, levelsTitle, levels, levelType)),
+					"Отдельные действия по уровню подписки: 1, 2, 3, Prime"), row, 4);
+		} else {
+			grid.addChild(SpacerElement.width(84), row, 4);
 		}
 	}
 }
