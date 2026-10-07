@@ -1,4 +1,4 @@
-# TwitchCraft 1.8.0 — гайд и мануал
+# TwitchCraft 1.9.0 — гайд и мануал
 
 > **Гайд** (часть I) — пошагово, от установки до первого стрима. Читай подряд.
 > **Мануал** (часть II) — справочник по каждой функции, полю конфига и команде. Читай по оглавлению.
@@ -98,7 +98,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    нажми *Install*. В лаунчере появится профиль **fabric-loader-26.3**.
 2. **Fabric API** для 26.3 — файл `fabric-api-0.161.0+26.3.jar` (или новее для 26.3):
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>.
-3. **TwitchCraft** — файл **[`twitchcraft-1.8.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+3. **TwitchCraft** — файл **[`twitchcraft-1.9.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
    из вложения релиза на GitHub (в `release/` репозитория лежат jar 1.7.0 и 1.7.1; если нужной версии во вложениях нет —
    собери сам: `./gradlew build`, готовые файлы появятся в `build/libs`).
    Страница опубликованных версий: <https://github.com/cherdakmd/twitchcraft/releases>.
@@ -115,7 +115,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    Если папки `mods` нет — создай.
 6. Запусти лаунчер, выбери профиль **fabric-loader-26.3**, нажми *Играть*.
 
-Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.8.0** (и **Артефакты**, если поставил аддон).
+Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.9.0** (и **Артефакты**, если поставил аддон).
 Или зайди в любой мир и набери `/twitch` — появится справка, а `/twitch addons` покажет подключённые аддоны.
 
 > **Обновление с прошлых версий**: просто замени jar. Конфиг дополнится новыми разделами сам, твои награды и команды
@@ -1810,4 +1810,4 @@ delay 40                                                      # 2 секунды
 
 ---
 
-*TwitchCraft 1.8.0 · Minecraft 26.3 · Fabric · Каналы dedworkshop (Twitch и VK Video Live). Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, отчёты аудитов — `AUDIT.md`.*
+*TwitchCraft 1.9.0 · Minecraft 26.3 · Fabric · Каналы dedworkshop (Twitch и VK Video Live). Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, отчёты аудитов — `AUDIT.md`.*
