@@ -199,18 +199,18 @@ public class YoutubeHarness {
 				state().get("channel_calls").getAsInt() <= 2);
 
 		System.out.println("== YouTube failure backoff and Retry-After ==");
-		int before = chatCalls();
+		int beforeBackoff = chatCalls();
 		injectFailure("500", 1, 0);
 		check("a 5xx failure is retried with a growing delay (>= 2 s)",
-				waitFor(() -> chatCalls() > before + 1, 15000)
-				&& chatCallTime(before + 1) - chatCallTime(before) >= 2000);
+				waitFor(() -> chatCalls() > beforeBackoff + 1, 15000)
+				&& chatCallTime(beforeBackoff + 1) - chatCallTime(beforeBackoff) >= 2000);
 		check("polling recovers after a transient failure",
 				waitFor(() -> youtube.consecutiveFailures() == 0 && youtube.isActive(), 15000));
-		before = chatCalls();
+		int beforeRateLimit = chatCalls();
 		injectFailure("429", 1, 3);
 		check("Retry-After from Google is respected on 429",
-				waitFor(() -> chatCalls() > before + 1, 20000)
-				&& chatCallTime(before + 1) - chatCallTime(before) >= 3000);
+				waitFor(() -> chatCalls() > beforeRateLimit + 1, 20000)
+				&& chatCallTime(beforeRateLimit + 1) - chatCallTime(beforeRateLimit) >= 3000);
 
 		System.out.println("== YouTube outgoing chat queue ==");
 		youtube.send("Первое сообщение", true);
