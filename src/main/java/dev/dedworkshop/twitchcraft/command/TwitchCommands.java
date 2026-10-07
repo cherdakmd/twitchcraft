@@ -335,20 +335,28 @@ public final class TwitchCommands {
 						.then(literal("test")
 								.then(literal("follow").executes(ctx -> test(mod,
 										TwitchEvent.test(TwitchEvent.Type.FOLLOW, "TestViewer", 0, "", "", ""))))
-								.then(literal("sub").executes(ctx -> test(mod,
-										TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1"))))
+					.then(literal("sub")
+							.executes(ctx -> test(mod,
+									TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "", "1")))
+							.then(argument("tier", StringArgumentType.word())
+									.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, "TestViewer", 1, "", "",
+											StringArgumentType.getString(ctx, "tier"))))))
 								.then(literal("resub")
 										.executes(ctx -> test(mod,
 												TwitchEvent.test(TwitchEvent.Type.RESUB, "TestViewer", 6, "Классный стрим!", "", "1")))
 										.then(argument("months", IntegerArgumentType.integer(1))
 												.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.RESUB, "TestViewer",
 														IntegerArgumentType.getInteger(ctx, "months"), "Классный стрим!", "", "1")))))
-								.then(literal("gift")
-										.executes(ctx -> test(mod,
-												TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer", 5, "", "", "1")))
-										.then(argument("count", IntegerArgumentType.integer(1))
-												.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
-														IntegerArgumentType.getInteger(ctx, "count"), "", "", "1")))))
+					.then(literal("gift")
+							.executes(ctx -> test(mod,
+									TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer", 5, "", "", "1")))
+							.then(argument("count", IntegerArgumentType.integer(1))
+									.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
+											IntegerArgumentType.getInteger(ctx, "count"), "", "", "1")))
+									.then(argument("tier", StringArgumentType.word())
+											.executes(ctx -> test(mod, TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, "TestViewer",
+													IntegerArgumentType.getInteger(ctx, "count"), "", "",
+													StringArgumentType.getString(ctx, "tier")))))))
 								.then(literal("cheer")
 										.executes(ctx -> test(mod,
 												TwitchEvent.test(TwitchEvent.Type.CHEER, "TestViewer", 100, "Cheer100 Держи!", "", "")))

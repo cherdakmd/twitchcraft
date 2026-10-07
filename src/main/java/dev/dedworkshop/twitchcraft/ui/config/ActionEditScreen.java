@@ -195,13 +195,21 @@ class ActionEditScreen extends BaseScreen {
 					return;
 				}
 			}
+			if (kind == ActionKind.SUB_TIER && ModConfig.normalizeSubTier(newKey) == null) {
+				Chat.error("Уровень подписки — 1, 2, 3 или prime.");
+				return;
+			}
 			if (kind == ActionKind.CHAT_COMMAND && newKey.contains(" ")) {
 				Chat.error("Имя команды — одно слово без пробелов.");
 				return;
 			}
 		}
 		ModConfig.normalizeAction(draft);
-		onSave.accept(kind.hasKey() ? newKey : originalKey, draft);
+		String saveKey = newKey;
+		if (kind == ActionKind.SUB_TIER) {
+			saveKey = ModConfig.normalizeSubTier(newKey); // «Tier 2» / «2000» → «2»
+		}
+		onSave.accept(kind.hasKey() ? saveKey : originalKey, draft);
 		onClose();
 	}
 

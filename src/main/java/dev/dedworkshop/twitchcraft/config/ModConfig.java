@@ -472,6 +472,18 @@ public class ModConfig {
 	public Map<String, Action> giftSubTiers = new LinkedHashMap<>();
 	public Map<String, Action> raidTiers = new LinkedHashMap<>();
 
+	/**
+	 * Действия по уровню подписки (ветвление по {tier}). Ключ — уровень: "1", "2", "3" или "prime"
+	 * (регистр не важен; годятся и сырые значения Twitch "1000"/"2000"/"3000").
+	 * subscribeByTier — новая подписка: действие уровня выполняется ВМЕСТО базового {@code subscribe}.
+	 * resubByTier / giftSubByTier — ресаб и подарки: если ни один порог по количеству
+	 * ({@code resubTiers} / {@code giftSubTiers}) не подошёл, берётся действие уровня, иначе базовое.
+	 * Экран настроек: /twitch config → События Twitch → «Уровни».
+	 */
+	public Map<String, Action> subscribeByTier = new LinkedHashMap<>();
+	public Map<String, Action> resubByTier = new LinkedHashMap<>();
+	public Map<String, Action> giftSubByTier = new LinkedHashMap<>();
+
 	/** Ключ — точное название награды за баллы канала (регистр не важен). "*" — для всех остальных наград. */
 	public Map<String, Action> rewards = new LinkedHashMap<>();
 
@@ -546,6 +558,43 @@ public class ModConfig {
 		for (Map.Entry<String, Action> entry : addonTriggers.entrySet()) {
 			if (entry.getValue() != null && normalized.equals(normalizeTriggerSlot(entry.getKey()))) {
 				return new Resolved(entry.getValue(), "addonTrigger:" + normalized);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Нормализует уровень подписки: "1"/"2"/"3"/"prime" (регистр не важен; "2000" → "2",
+	 * "Tier 3" → "3").
+	 *
+	 * @return "1", "2", "3" или "prime"; null, если это не уровень подписки
+	 */
+	public static String normalizeSubTier(String tier) {
+		if (tier == null) {
+			return null;
+		}
+		String value = tier.trim().toLowerCase(Locale.ROOT);
+		if (value.startsWith("tier")) {
+			value = value.substring(4).trim();
+		}
+		return switch (value) {
+			case "1", "1000" -> "1";
+			case "2", "2000" -> "2";
+			case "3", "3000" -> "3";
+			case "prime" -> "prime";
+			default -> null;
+		};
+	}
+
+	/** Действие из таблицы уровней подписки (ключи сравниваются нормализованными); null, если уровня нет. */
+	private static Action byTierAction(Map<String, Action> byTier, String tier) {
+		String normalized = normalizeSubTier(tier);
+		if (normalized == null || byTier == null) {
+			return null;
+		}
+		for (Map.Entry<String, Action> entry : byTier.entrySet()) {
+			if (entry.getValue() != null && normalized.equals(normalizeSubTier(entry.getKey()))) {
+				return entry.getValue();
 			}
 		}
 		return null;
@@ -812,9 +861,9 @@ public class ModConfig {
 	public Resolved findAction(TwitchEvent event) {
 		Resolved resolved = switch (event.type()) {
 			case FOLLOW -> single(follow, "follow");
-			case SUBSCRIBE -> single(subscribe, "subscribe");
-			case RESUB -> tiered(resubTiers, event.amount(), "resub", resub);
-			case GIFT_SUB -> tiered(giftSubTiers, event.amount(), "giftSub", giftSub);
+			case SUBSCRIBE -> levelOrBase(subscribeByTier, event.tier(), subscribe, "subscribe");
+			case RESUB -> thresholdsThenLevel(resubTiers, resubByTier, event, "resub", resub);
+			case GIFT_SUB -> thresholdsThenLevel(giftSubTiers, giftSubByTier, event, "giftSub", giftSub);
 			case RAID -> tiered(raidTiers, event.amount(), "raid", raid);
 			case CHEER -> tiered(cheer, event.amount(), "cheer", null);
 			case REWARD -> findRewardAction(event.reward());
@@ -856,6 +905,25 @@ public class ModConfig {
 
 	private static Resolved single(Action action, String key) {
 		return action == null ? null : new Resolved(action, key);
+	}
+
+	/** Действие уровня подписки (1/2/3/prime); если для уровня ничего нет — базовое действие. */
+	private Resolved levelOrBase(Map<String, Action> byTier, String tier, Action base, String key) {
+		Action action = byTierAction(byTier, tier);
+		if (action != null) {
+			return new Resolved(action, key + ":tier:" + normalizeSubTier(tier));
+		}
+		return single(base, key);
+	}
+
+	/** Порог по количеству; если ни один не подошёл — действие уровня подписки, затем базовое. */
+	private Resolved thresholdsThenLevel(Map<String, Action> thresholds, Map<String, Action> byTier, TwitchEvent event,
+			String key, Action base) {
+		Resolved threshold = tiered(thresholds, event.amount(), key, null);
+		if (threshold != null) {
+			return threshold;
+		}
+		return levelOrBase(byTier, event.tier(), base, key);
 	}
 
 	/** Порог: самый большой ключ, не превышающий value. Если порогов нет — запасное действие. */
@@ -1361,6 +1429,9 @@ public class ModConfig {
 		if (resubTiers == null) resubTiers = new LinkedHashMap<>();
 		if (giftSubTiers == null) giftSubTiers = new LinkedHashMap<>();
 		if (raidTiers == null) raidTiers = new LinkedHashMap<>();
+		if (subscribeByTier == null) subscribeByTier = new LinkedHashMap<>();
+		if (resubByTier == null) resubByTier = new LinkedHashMap<>();
+		if (giftSubByTier == null) giftSubByTier = new LinkedHashMap<>();
 		if (rewards == null) rewards = new LinkedHashMap<>();
 		if (donationTiers == null) donationTiers = new LinkedHashMap<>();
 		if (donationAlertsTiers == null) donationAlertsTiers = new LinkedHashMap<>();
@@ -1398,7 +1469,8 @@ public class ModConfig {
 		if (clips.clipChatText == null) clips.clipChatText = "";
 		if (warnings == null) warnings = new ArrayList<>();
 		for (Map<String, Action> map : List.of(chatCommands, cheer, resubTiers, giftSubTiers, raidTiers, rewards,
-				donationTiers, donationAlertsTiers, donatePayTiers, gameEvents, addonTriggers)) {
+				donationTiers, donationAlertsTiers, donatePayTiers, gameEvents, addonTriggers,
+				subscribeByTier, resubByTier, giftSubByTier)) {
 			for (Action action : map.values()) {
 				normalizeAction(action);
 			}
@@ -1579,6 +1651,20 @@ public class ModConfig {
 				}
 			} else if (addonTriggersElement != null && !addonTriggersElement.isJsonNull()) {
 				result.add("addonTriggers должно быть объектом { ... }");
+			}
+			for (String tierMapName : List.of("subscribeByTier", "resubByTier", "giftSubByTier")) {
+				JsonElement tierMap = obj.get(tierMapName);
+				if (tierMap != null && tierMap.isJsonObject()) {
+					for (Map.Entry<String, JsonElement> entry : tierMap.getAsJsonObject().entrySet()) {
+						checkAction(entry.getValue(), tierMapName + "." + entry.getKey(), actionFields, result);
+						if (normalizeSubTier(entry.getKey()) == null) {
+							result.add("ключ \"" + entry.getKey() + "\" в " + tierMapName
+									+ " должен быть уровнем подписки: 1, 2, 3 или prime");
+						}
+					}
+				} else if (tierMap != null && !tierMap.isJsonNull()) {
+					result.add(tierMapName + " должно быть объектом { ... }");
+				}
 			}
 			for (String mapName : List.of("cheer", "resubTiers", "giftSubTiers", "raidTiers", "rewards", "chatCommands")) {
 				JsonElement map = obj.get(mapName);
