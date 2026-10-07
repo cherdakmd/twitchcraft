@@ -98,8 +98,8 @@ class YoutubeScreen extends BaseScreen {
 		content.addChild(appButtons);
 
 		section(content, "Эфир");
-		content.addChild(Widgets.clipped(font, Component.literal(viewersLine(youtube)), Widgets.FULL));
-		content.addChild(Widgets.clipped(font, Component.literal(broadcastLine(youtube)), Widgets.FULL));
+		content.addChild(Widgets.clipped(font, viewersLine(youtube), Widgets.FULL));
+		content.addChild(Widgets.clipped(font, broadcastLine(youtube), Widgets.FULL));
 		content.addChild(Widgets.clipped(font, Component.literal("§7Квота Data API: §f"
 				+ youtube.quota().describe(draft.quotaBudget)).withStyle(ChatFormatting.GRAY), Widgets.FULL));
 		GridLayout broadcast = Widgets.form();
