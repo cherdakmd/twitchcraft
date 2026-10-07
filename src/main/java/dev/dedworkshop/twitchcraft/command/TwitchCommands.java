@@ -243,7 +243,38 @@ public final class TwitchCommands {
 														.executes(ctx -> test(mod, VkLive.testEvent(TwitchEvent.Type.REWARD, "VkViewer", 250,
 																"Привет из VK", StringArgumentType.getString(ctx, "title"))))))))
 
-						.then(literal("setup")
+							.then(literal("youtube")
+								.executes(ctx -> youtube(mod))
+								.then(literal("client")
+										.then(argument("clientId", StringArgumentType.word())
+												.executes(ctx -> youtubeClient(mod, StringArgumentType.getString(ctx, "clientId")))))
+								.then(literal("login").executes(ctx -> youtubeLogin(mod)))
+								.then(literal("cancel").executes(ctx -> run(() -> mod.youtube().cancelLogin())))
+								.then(literal("logout").executes(ctx -> run(() -> mod.youtube().logout())))
+								.then(literal("connect").executes(ctx -> run(() -> mod.youtube().connect(true))))
+								.then(literal("disconnect").executes(ctx -> {
+									mod.youtube().disconnect();
+									Chat.info("YouTube Live: отключено (автоподключение выключено до /twitch youtube connect).");
+									return 1;
+								}))
+								.then(literal("say")
+										.then(argument("text", StringArgumentType.greedyString())
+												.executes(ctx -> run(() -> mod.youtube().send(StringArgumentType.getString(ctx, "text"), true)))))
+								.then(literal("code")
+										.then(argument("url", StringArgumentType.greedyString())
+												.executes(ctx -> run(() -> mod.youtube().finishLoginWithUrl(StringArgumentType.getString(ctx, "url"))))))
+								.then(literal("debug")
+										.then(literal("on").executes(ctx -> youtubeDebug(mod, true)))
+										.then(literal("off").executes(ctx -> youtubeDebug(mod, false))))
+								.then(literal("test")
+										.then(literal("chat")
+												.then(argument("text", StringArgumentType.greedyString())
+														.executes(ctx -> youtubeTest(mod, "chat", StringArgumentType.getString(ctx, "text")))))
+										.then(literal("member").executes(ctx -> youtubeTest(mod, "member", "")))
+										.then(literal("gift").executes(ctx -> youtubeTest(mod, "gift", "")))
+										.then(literal("superchat").executes(ctx -> youtubeTest(mod, "superchat", "")))))
+
+							.then(literal("setup")
 								.then(argument("clientId", StringArgumentType.word())
 										.executes(ctx -> {
 											mod.setClientId(StringArgumentType.getString(ctx, "clientId"));
@@ -913,8 +944,65 @@ public final class TwitchCommands {
 		return 1;
 	}
 
+	// ---------- YouTube Live ----------
+
+	private static int youtube(TwitchCraftClient mod) {
+		var youtube = mod.config().youtube;
+		Chat.info("§6§l=== YouTube Live ===§r" + (mod.isModuleEnabled(Module.YOUTUBE_LIVE) ? "" : " §8[модуль выключен: /twitch module youtubeLive on]"));
+		Chat.info("§7Статус: " + mod.youtube().statusText());
+		Chat.info("§7OAuth Client ID: " + (mod.youtube().isConfigured() ? "§aуказан" : "§cне указан")
+				+ "§7, callback: §f" + mod.youtube().redirectUri());
+		Chat.info("§7Флаги: чат " + onOff(youtube.showChat) + "§7, команды " + onOff(youtube.chatCommands)
+				+ "§7, платные сообщения " + onOff(youtube.paidMessages) + "§7, членства " + onOff(youtube.memberships)
+				+ "§7, ответы " + onOff(youtube.replies));
+		Chat.info("§7Настройка: включи YouTube Data API v3, создай OAuth Client ID типа Desktop app, затем "
+				+ "§e/twitch youtube client <Client ID>§7 и §e/twitch youtube login");
+		Chat.info("§7OAuth-токены отдельно: §fconfig/twitchcraft-youtube.json§7. Настройки мода: §e/twitch config§7 → YouTube Live");
+		Chat.info("§7Команды: §e/twitch youtube connect|disconnect|say <текст>|logout|test chat|member|gift|superchat");
+		return 1;
+	}
+
+	private static int youtubeClient(TwitchCraftClient mod, String clientId) {
+		mod.config().youtube.clientId = clientId.trim();
+		mod.config().save();
+		Chat.success("YouTube OAuth Client ID сохранён в config/twitchcraft.json. Теперь /twitch youtube login");
+		return 1;
+	}
+
+	private static int youtubeLogin(TwitchCraftClient mod) {
+		String url = mod.youtube().beginLogin();
+		if (url == null) return 0;
+		Chat.send(Component.literal("§7Открой ссылку и подтверди доступ: ").append(link("войти в YouTube Live", url)));
+		Chat.info("§7Вход через OAuth Desktop + PKCE; после callback подключение завершится само. "
+				+ "Если callback не сработал: §e/twitch youtube code <полный localhost URL>§7; отмена: §e/twitch youtube cancel");
+		return 1;
+	}
+
+	private static int youtubeDebug(TwitchCraftClient mod, boolean enabled) {
+		mod.config().youtube.debugEvents = enabled;
+		mod.config().save();
+		Chat.info("YouTube: подробный API-лог " + (enabled ? "§aвключён" : "§7выключен"));
+		return 1;
+	}
+
+	private static int youtubeTest(TwitchCraftClient mod, String kind, String text) {
+		String user = "YoutubeViewer";
+		TwitchEvent event = switch (kind) {
+			case "chat" -> TwitchEvent.test(TwitchEvent.Type.CHAT, user, 0, text, "", "");
+			case "member" -> TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, user, 1, "", "", "Участие канала");
+			case "gift" -> TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, user, 5, "", "", "Участие канала");
+			case "superchat" -> TwitchEvent.donation(TwitchEvent.SOURCE_YOUTUBE_SUPER_CHAT, user, 100, "RUB", "Спасибо за поддержку!", "test", true);
+			default -> null;
+		};
+		if (event == null) {
+			Chat.error("Неизвестный YouTube test: " + kind);
+			return 0;
+		}
+		return test(mod, event.withPlatform(TwitchEvent.PLATFORM_YOUTUBE));
+	}
+
 	private static int test(TwitchCraftClient mod, TwitchEvent event) {
-		Chat.info("§7[тест] Имитирую событие " + event.type());
+		Chat.info("§7[тест] Имитирую событие " + event.platformTitle() + " · " + event.type());
 		mod.onTwitchEvent(event);
 		return 1;
 	}
@@ -945,6 +1033,7 @@ public final class TwitchCommands {
 		source.sendFeedback(Component.literal("§e/twitch say <текст>§7 — написать в чат Twitch"));
 		source.sendFeedback(Component.literal("§e/twitch donations§7 — донаты (DonationAlerts / DonatePay): статус и настройка"));
 		source.sendFeedback(Component.literal("§e/twitch vk§7 — VK Video Live: статус, app/login/channel/connect/say/rewards sync/test"));
+		source.sendFeedback(Component.literal("§e/twitch youtube§7 — YouTube Live: client/login/connect/say/logout/debug/test; OAuth Desktop + PKCE"));
 		source.sendFeedback(Component.literal("§e/twitch clip [повод]§7 (F10) / §e/twitch marker [текст]§7 — клип / метка стрима прямо сейчас"));
 		source.sendFeedback(Component.literal("§e/twitch game§7 — события игры → чат: счётчики, §egame test death|advancement|boss|dimension§7, §egame reset"));
 		source.sendFeedback(Component.literal("§e/twitch timers§7 — таймеры чата, §etimers post|on|off <имя>"));
@@ -986,6 +1075,9 @@ public final class TwitchCommands {
 		}
 		if (mod.vk().isConfigured() || mod.vk().isLoggedIn()) {
 			Chat.info("§7VK Video Live" + (mod.isModuleEnabled(Module.VK_VIDEO_LIVE) ? "" : " §8[модуль выкл]§7") + ": " + mod.vk().statusText());
+		}
+		if (mod.youtube().isConfigured() || mod.youtube().isLoggedIn()) {
+			Chat.info("§7YouTube Live" + (mod.isModuleEnabled(Module.YOUTUBE_LIVE) ? "" : " §8[модуль выкл]§7") + ": " + mod.youtube().statusText());
 		}
 		if (mod.isLoginInProgress()) {
 			Chat.info("§7Авторизация: §eожидание подтверждения кода");

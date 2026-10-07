@@ -10,16 +10,16 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Единое описание события Twitch, уже разобранное из JSON.
+ * Единое описание события, уже разобранное из Twitch, VK Video Live, YouTube Live или Minecraft.
  *
  * @param type         тип события
  * @param user         отображаемое имя зрителя (или «Аноним»)
  * @param userLogin    логин зрителя (строчными буквами)
  * @param userId       id зрителя в Twitch
- * @param amount       число: битсы / месяцы / подарки / зрители рейда / стоимость награды
- * @param message      текст зрителя (сообщение к битсам, к ресабу, ввод к награде или текст чата)
+ * @param amount       число: битсы / месяцы / подарки / зрители рейда / стоимость награды / целая сумма доната
+ * @param message      текст зрителя (сообщение к битсам, членству/ресабу, донату, вводу к награде или текст чата)
  * @param reward       название награды за баллы канала (только для REWARD)
- * @param tier         уровень подписки: "1", "2", "3" или "Prime"
+ * @param tier         уровень подписки Twitch / YouTube-членства или код валюты доната
  * @param rewardId     id награды (для управления наградой через API)
  * @param redemptionId id активации награды (для возврата/подтверждения)
  * @param badges       значки зрителя в чате: broadcaster, moderator, vip, subscriber, founder
@@ -27,7 +27,7 @@ import java.util.Set;
  * @param command      имя чат-команды без префикса (только для CHAT_COMMAND)
  * @param synthetic    true для тестовых событий и повторов: без обращений к Twitch API и без кулдаунов
  * @param sharedFrom   логин канала-партнёра, если сообщение пришло из общего чата (Shared Chat) другого канала; иначе ""
- * @param platform     откуда пришло событие: {@link #PLATFORM_TWITCH} (по умолчанию) или {@link #PLATFORM_VK} (VK Video Live)
+ * @param platform     откуда пришло событие: Twitch (по умолчанию), VK Video Live или YouTube Live
  */
 public record TwitchEvent(
 		Type type,
@@ -73,6 +73,7 @@ public record TwitchEvent(
 
 	public static final String PLATFORM_TWITCH = "twitch";
 	public static final String PLATFORM_VK = "vk";
+	public static final String PLATFORM_YOUTUBE = "youtube";
 
 	/** Сообщение пришло из общего чата (Shared Chat) и написано в чате другого канала. */
 	public boolean isShared() {
@@ -84,12 +85,17 @@ public record TwitchEvent(
 		return PLATFORM_VK.equals(platform);
 	}
 
-	/** Короткое название площадки для сообщений: «Twitch» / «VK» / «Игра». */
-	public String platformTitle() {
-		return isVk() ? "VK" : isGame() ? "Игра" : "Twitch";
+	/** Событие пришло из чата YouTube Live. */
+	public boolean isYoutube() {
+		return PLATFORM_YOUTUBE.equals(platform);
 	}
 
-	/** Копия события с другой площадкой (для событий VK Video Live и тестов). */
+	/** Короткое название площадки для сообщений: «Twitch» / «VK» / «YouTube» / «Игра». */
+	public String platformTitle() {
+		return isVk() ? "VK" : isYoutube() ? "YouTube" : isGame() ? "Игра" : "Twitch";
+	}
+
+	/** Копия события с другой площадкой (для событий VK/YouTube Live и тестов). */
 	public TwitchEvent withPlatform(String newPlatform) {
 		return new TwitchEvent(type, user, userLogin, userId, amount, message, reward, tier, rewardId, redemptionId,
 				badges, color, command, synthetic, sharedFrom, newPlatform);
@@ -102,8 +108,8 @@ public record TwitchEvent(
 		/** Сбор средств закрыт: reward — имя сбора, amount — цель, message — в который раз, tier — код валюты. */
 		FUND,
 		/**
-		 * Донат через DonationAlerts / DonatePay: amount — сумма в основной валюте (целая),
-		 * tier — код валюты, reward — источник ("donationalerts" / "donatepay"), rewardId — id доната.
+		 * Донат через DonationAlerts / DonatePay / YouTube: amount — целая сумма в валюте источника,
+		 * tier — код валюты, reward — источник, rewardId — id доната/сообщения.
 		 */
 		DONATION,
 		/**
@@ -156,6 +162,9 @@ public record TwitchEvent(
 
 	public static final String SOURCE_DONATION_ALERTS = "donationalerts";
 	public static final String SOURCE_DONATE_PAY = "donatepay";
+	public static final String SOURCE_YOUTUBE_SUPER_CHAT = "youtube_superchat";
+	public static final String SOURCE_YOUTUBE_SUPER_STICKER = "youtube_supersticker";
+	public static final String SOURCE_YOUTUBE_FAN_FUNDING = "youtube_fanfunding";
 
 	/** Уровень доступа зрителя для чат-команд. */
 	public enum Permission {
@@ -223,9 +232,9 @@ public record TwitchEvent(
 	/**
 	 * Донат.
 	 *
-	 * @param source    источник: SOURCE_DONATION_ALERTS / SOURCE_DONATE_PAY / "test"
-	 * @param user      имя донатера
-	 * @param amount    сумма в основной валюте, округлённая вниз до целого
+	 * @param source    DonationAlerts / DonatePay / YouTube Super Chat, Super Sticker or Fan Funding
+		 * @param user      имя донатера
+		 * @param amount    сумма в валюте источника, округлённая вниз до целого
 	 * @param currency  код валюты (RUB, USD...)
 	 * @param message   сообщение донатера
 	 * @param id        id доната в сервисе (для защиты от повторов)
@@ -254,6 +263,9 @@ public record TwitchEvent(
 		return switch (source()) {
 			case SOURCE_DONATION_ALERTS -> "DonationAlerts";
 			case SOURCE_DONATE_PAY -> "DonatePay";
+			case SOURCE_YOUTUBE_SUPER_CHAT -> "YouTube Super Chat";
+			case SOURCE_YOUTUBE_SUPER_STICKER -> "YouTube Super Sticker";
+			case SOURCE_YOUTUBE_FAN_FUNDING -> "YouTube Fan Funding";
 			case "" -> "";
 			default -> source();
 		};
@@ -436,11 +448,17 @@ public record TwitchEvent(
 
 	/** Человекочитаемое описание события для чата (без цветовых кодов из текста зрителя). */
 	public String describe() {
-		return (isVk() ? "§9[VK] §r" : isGame() ? "§2[Игра] §r" : "") + switch (type) {
+		return (isVk() ? "§9[VK] §r" : isYoutube() ? "§c[YouTube] §r" : isGame() ? "§2[Игра] §r" : "") + switch (type) {
 			case FOLLOW -> "§d" + user + "§r зафолловил(а) канал";
-			case SUBSCRIBE -> "§d" + user + "§r оформил(а) подписку (Tier " + tier + ")";
-			case RESUB -> "§d" + user + "§r продлил(а) подписку: " + amount + " мес." + suffix(message);
-			case GIFT_SUB -> "§d" + user + "§r подарил(а) подписок: " + amount;
+			case SUBSCRIBE -> isYoutube()
+					? "§d" + user + "§r стал(а) участником канала" + (tier.isBlank() ? "" : " (" + tier + ")")
+					: "§d" + user + "§r оформил(а) подписку (Tier " + tier + ")";
+			case RESUB -> isYoutube()
+					? "§d" + user + "§r участник уже " + amount + " мес." + (tier.isBlank() ? "" : " (" + tier + ")") + suffix(message)
+					: "§d" + user + "§r продлил(а) подписку: " + amount + " мес." + suffix(message);
+			case GIFT_SUB -> isYoutube()
+					? "§d" + user + "§r подарил(а) участий: " + amount + (tier.isBlank() ? "" : " (" + tier + ")")
+					: "§d" + user + "§r подарил(а) подписок: " + amount;
 			case CHEER -> "§d" + user + "§r отправил(а) " + amount + " битс" + suffix(message);
 			case RAID -> "Рейд от §d" + user + "§r — зрителей: " + amount;
 			case REWARD -> "§d" + user + "§r активировал(а) награду «" + reward + "» (" + amount + ")" + suffix(message);
@@ -500,11 +518,11 @@ public record TwitchEvent(
 
 	/** Короткая строка для журнала и HUD. */
 	public String shortText() {
-		return (isVk() ? "VK " : "") + switch (type) {
+		return (isVk() ? "VK " : isYoutube() ? "YouTube " : "") + switch (type) {
 			case FOLLOW -> user + " · фоллов";
-			case SUBSCRIBE -> user + " · саб T" + tier;
-			case RESUB -> user + " · ресаб " + amount + " мес.";
-			case GIFT_SUB -> user + " · подарил " + amount;
+			case SUBSCRIBE -> isYoutube() ? user + " · членство " + tier : user + " · саб T" + tier;
+			case RESUB -> isYoutube() ? user + " · участие " + amount + " мес." : user + " · ресаб " + amount + " мес.";
+			case GIFT_SUB -> isYoutube() ? user + " · подарил участий " + amount : user + " · подарил " + amount;
 			case CHEER -> user + " · " + amount + " битс";
 			case RAID -> user + " · рейд " + amount;
 			case REWARD -> user + " · " + reward;

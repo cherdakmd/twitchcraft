@@ -126,10 +126,12 @@ public class EventProcessor {
 		if (config.isIgnoredUser(event.userLogin())) {
 			return;
 		}
-		// Для VK чат и команды включаются флагами раздела vk (сам модуль проверен выше), для Twitch — модулями
+		// Каждая платформа имеет собственные флаги чата/команд; владелец события (и общий модуль) проверен выше.
 		boolean vk = event.isVk();
-		boolean showChat = vk ? config.vk.showChat : config.isEnabled(Module.TWITCH_CHAT);
-		boolean allowCommands = config.isEnabled(Module.CHAT_COMMANDS) && (!vk || config.vk.chatCommands);
+		boolean youtube = event.isYoutube();
+		boolean showChat = youtube ? config.youtube.showChat : vk ? config.vk.showChat : config.isEnabled(Module.TWITCH_CHAT);
+		boolean allowCommands = youtube ? config.youtube.chatCommands
+				: config.isEnabled(Module.CHAT_COMMANDS) && (!vk || config.vk.chatCommands);
 		if (!showChat && !allowCommands) {
 			return;
 		}
@@ -152,7 +154,9 @@ public class EventProcessor {
 		}
 
 		ModConfig.Resolved resolved = name == null || !allowCommands ? null : config.findChatCommand(name);
-		if (resolved != null && (vk ? mod.vk().wasSentByUs(text) : mod.chatSender().wasSentByUs(text))) {
+		boolean sentByUs = youtube ? mod.youtube().wasSentByUs(text)
+				: vk ? mod.vk().wasSentByUs(text) : mod.chatSender().wasSentByUs(text);
+		if (resolved != null && sentByUs) {
 			resolved = null; // наш собственный ответ вернулся через чат — не зацикливаемся
 		}
 		if (resolved != null && event.isShared() && !config.twitchChat.sharedChatCommands) {
@@ -270,7 +274,8 @@ public class EventProcessor {
 		recent.addLast(System.currentTimeMillis());
 		lastEvent = event;
 
-		boolean chatShown = event.isVk() ? config.vk.showChat : config.isEnabled(Module.TWITCH_CHAT);
+		boolean chatShown = event.isYoutube() ? config.youtube.showChat
+				: event.isVk() ? config.vk.showChat : config.isEnabled(Module.TWITCH_CHAT);
 		boolean chatCommandShown = event.type() == TwitchEvent.Type.CHAT_COMMAND && chatShown && !config.twitchChat.hideCommands;
 		if (config.showEventsInChat && !chatCommandShown) {
 			boolean hideMessage = event.type() == TwitchEvent.Type.DONATION && !config.donations.showMessage;

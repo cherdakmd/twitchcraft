@@ -27,6 +27,8 @@ import dev.dedworkshop.twitchcraft.ui.OverlayHud;
 import dev.dedworkshop.twitchcraft.util.Chat;
 import dev.dedworkshop.twitchcraft.vk.VkLive;
 import dev.dedworkshop.twitchcraft.vk.VkStore;
+import dev.dedworkshop.twitchcraft.youtube.YoutubeLive;
+import dev.dedworkshop.twitchcraft.youtube.YoutubeStore;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -78,6 +80,8 @@ public class TwitchCraftClient implements ClientModInitializer {
 	private DonationManager donations;
 	private VkStore vkStore;
 	private VkLive vk;
+	private YoutubeStore youtubeStore;
+	private YoutubeLive youtube;
 	private GameStats gameStats;
 	private GameEvents game;
 	private ChatTimers timers;
@@ -123,6 +127,8 @@ public class TwitchCraftClient implements ClientModInitializer {
 		donations = new DonationManager(this);
 		vkStore = VkStore.load();
 		vk = new VkLive(this);
+		youtubeStore = YoutubeStore.load();
+		youtube = new YoutubeLive(this);
 		gameStats = GameStats.load();
 		gameStats.setPersist(config.gameEventsSettings == null || config.gameEventsSettings.persistStats);
 		game = new GameEvents(this, gameStats);
@@ -245,6 +251,14 @@ public class TwitchCraftClient implements ClientModInitializer {
 		return vk;
 	}
 
+	public YoutubeStore youtubeStore() {
+		return youtubeStore;
+	}
+
+	public YoutubeLive youtube() {
+		return youtube;
+	}
+
 	public GameEvents game() {
 		return game;
 	}
@@ -300,6 +314,11 @@ public class TwitchCraftClient implements ClientModInitializer {
 	 * «Ответы в чат», но с теми же очередями и проверками прав.
 	 */
 	public void announce(String text, boolean toTwitch, boolean toVk, boolean verbose) {
+		announce(text, toTwitch, toVk, false, verbose);
+	}
+
+	/** Backward-compatible multi-platform announce with an explicit YouTube destination. */
+	public void announce(String text, boolean toTwitch, boolean toVk, boolean toYoutube, boolean verbose) {
 		if (text == null || text.isBlank()) {
 			return;
 		}
@@ -309,19 +328,24 @@ public class TwitchCraftClient implements ClientModInitializer {
 		if (toVk && vk != null && isModuleEnabled(Module.VK_VIDEO_LIVE)) {
 			vk.send(text, verbose);
 		}
+		if (toYoutube && youtube != null && isModuleEnabled(Module.YOUTUBE_LIVE)) {
+			youtube.send(text, verbose);
+		}
 	}
 
 	/**
-	 * Автоответ зрителю туда, откуда пришло событие: в чат VK Video Live для событий VK, иначе — в чат Twitch.
-	 * Учитывает модуль «Ответы в чат» (и флаг replies раздела vk).
+	 * Автоответ зрителю туда, откуда пришло событие: в чат платформы-источника.
+	 * Учитывает общие настройки ответов и отдельные флаги VK / YouTube.
 	 */
 	public void reply(TwitchEvent event, String text) {
 		if (event != null && event.isGame()) {
-			// События игры объявляются в оба чата (настройки раздела gameEventsSettings)
+			// События игры объявляются в выбранные чаты (настройки раздела gameEventsSettings).
 			ModConfig.GameEventsSettings settings = config.gameEventsSettings == null ? new ModConfig.GameEventsSettings() : config.gameEventsSettings;
-			announce(text, settings.toTwitch, settings.toVk, false);
+			announce(text, settings.toTwitch, settings.toVk, settings.toYoutube, false);
 		} else if (event != null && event.isVk()) {
 			vk.reply(text);
+		} else if (event != null && event.isYoutube()) {
+			youtube.reply(text);
 		} else {
 			chatSender.reply(text);
 		}
@@ -384,6 +408,10 @@ public class TwitchCraftClient implements ClientModInitializer {
 			vk.onModuleChanged(enabled);
 			return;
 		}
+		if (module == Module.YOUTUBE_LIVE && youtube != null) {
+			youtube.onModuleChanged(enabled);
+			return;
+		}
 		resubscribeIfNeeded();
 	}
 
@@ -401,6 +429,9 @@ public class TwitchCraftClient implements ClientModInitializer {
 		}
 		if (vk != null) {
 			vk.syncWithConfig();
+		}
+		if (youtube != null) {
+			youtube.syncWithConfig();
 		}
 		if (timers != null) {
 			timers.syncWithConfig();
@@ -433,6 +464,7 @@ public class TwitchCraftClient implements ClientModInitializer {
 		game.onJoinWorld();
 		donations.autoConnect();
 		vk.autoConnect();
+		youtube.syncWithConfig();
 		if (config.clientId == null || config.clientId.isBlank()) {
 			if (!hintShown) {
 				hintShown = true;
@@ -504,6 +536,7 @@ public class TwitchCraftClient implements ClientModInitializer {
 		eventSub.disconnect();
 		donations.shutdown();
 		vk.shutdown();
+		youtube.shutdown();
 		worker.shutdownNow();
 		scheduler.shutdownNow();
 	}
@@ -536,6 +569,9 @@ public class TwitchCraftClient implements ClientModInitializer {
 		}
 		if (vk != null) {
 			vk.syncWithConfig();
+		}
+		if (youtube != null) {
+			youtube.syncWithConfig();
 		}
 		AddonManager.configChanged();
 	}

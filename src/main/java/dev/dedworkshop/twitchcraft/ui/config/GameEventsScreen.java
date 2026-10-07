@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * События игры → чат: смерть, достижения (обычные / цели / испытания), боссы, смена измерения.
- * У каждого — обычное действие (reply уходит в чаты Twitch и VK) и кнопка «Тест».
+ * У каждого — обычное действие (reply уходит в выбранные чаты Twitch, VK и YouTube) и кнопка «Тест».
  */
 class GameEventsScreen extends BaseScreen {
 	private static final Map<String, String> LABELS = Map.of(
@@ -54,7 +54,7 @@ class GameEventsScreen extends BaseScreen {
 			content.addChild(new StringWidget(Component.literal("Модуль «События игры → чат» выключен — ничего не объявляется (включи в «Модули»)")
 					.withStyle(ChatFormatting.RED), font));
 		} else {
-			content.addChild(Widgets.gray(font, "Смерть, достижения, боссы и смена измерения уходят сообщением (поле «Сообщение в чат Twitch и VK»)"));
+			content.addChild(Widgets.gray(font, "Смерть, достижения, боссы и смена измерения уходят сообщением (поле «Сообщение в чат»)"));
 		}
 		GameStats stats = mod.gameStats();
 		content.addChild(Widgets.gray(font, "За сеанс: смертей " + stats.deaths + ", достижений " + stats.advancements + ", боссов " + stats.bosses
@@ -105,6 +105,10 @@ class GameEventsScreen extends BaseScreen {
 			settings.toVk = v;
 			settingsChanged = true;
 		}, Widgets.FIELD, "Если VK подключён"));
+		row(form, r++, "Чат YouTube Live", Widgets.toggle("Писать", settings.toYoutube, v -> {
+			settings.toYoutube = v;
+			settingsChanged = true;
+		}, Widgets.FIELD, "Если YouTube Live подключён и выданы права на отправку"));
 		row(form, r++, "Чужие достижения", Widgets.toggle("Объявлять", settings.otherPlayers, v -> {
 			settings.otherPlayers = v;
 			settingsChanged = true;

@@ -74,9 +74,11 @@ class TimersScreen extends BaseScreen {
 		String when = !timer.enabled ? "выкл" : left < 0 ? "ждёт" : left == 0 ? "ждёт живого чата" : "через " + (left / 60) + " мин";
 		MutableComponent text = Component.literal(timer.name.isBlank() ? "(без имени)" : timer.name)
 				.withStyle(timer.enabled ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY);
+		String destinations = (timer.twitch ? "Twitch " : "") + (timer.vk ? "VK " : "") + (timer.youtube ? "YouTube " : "");
+		if (destinations.isBlank()) destinations = "никуда";
 		return text.append(Component.literal(" · " + timer.intervalMinutes + " мин"
 				+ (timer.minChatMessages > 0 ? " · чат " + timer.minChatMessages + "+" : "")
-				+ " · " + (timer.twitch && timer.vk ? "Twitch+VK" : timer.twitch ? "Twitch" : timer.vk ? "VK" : "никуда")
+				+ " · " + destinations.trim()
 				+ " · " + when).withStyle(ChatFormatting.GRAY));
 	}
 }

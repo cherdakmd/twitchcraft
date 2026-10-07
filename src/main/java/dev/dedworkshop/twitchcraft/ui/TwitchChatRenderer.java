@@ -24,9 +24,11 @@ public final class TwitchChatRenderer {
 	}
 
 	public static MutableComponent build(ModConfig config, TwitchEvent event) {
-		String prefix = event.isVk()
-				? (config.vk == null || config.vk.chatPrefix == null ? "" : Chat.colorize(config.vk.chatPrefix))
-				: (config.twitchChat.prefix == null ? "" : Chat.colorize(config.twitchChat.prefix));
+		String prefix = event.isYoutube()
+				? (config.youtube == null || config.youtube.chatPrefix == null ? "" : Chat.colorize(config.youtube.chatPrefix))
+				: event.isVk()
+					? (config.vk == null || config.vk.chatPrefix == null ? "" : Chat.colorize(config.vk.chatPrefix))
+					: (config.twitchChat.prefix == null ? "" : Chat.colorize(config.twitchChat.prefix));
 		MutableComponent line = Component.literal(prefix);
 
 		if (config.twitchChat.showBadges) {

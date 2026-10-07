@@ -29,8 +29,9 @@ public enum Module {
 	DONATION_ALERTS("donationAlerts", "DonationAlerts", "Донаты через DonationAlerts в реальном времени → эффекты по сумме", Kind.DONATIONS, null),
 	DONATE_PAY("donatePay", "DonatePay", "Донаты через DonatePay (опрос API по ключу раз в 20 с) → эффекты по сумме", Kind.DONATIONS, null),
 	VK_VIDEO_LIVE("vkVideoLive", "VK Video Live", "Чат, чат-команды, награды за баллы и фолловы канала на live.vkvideo.ru — те же действия, что и для Twitch", Kind.PLATFORMS, null),
-	GAME_EVENTS("gameEvents", "События игры → чат", "Смерти, достижения, боссы и смена измерения объявляются в чат Twitch и VK; счётчик смертей (!смерти, !время)", Kind.FEATURE, null),
-	CHAT_TIMERS("chatTimers", "Таймеры чата", "Периодические сообщения бота в чаты Twitch и VK: напоминание о ценнике, соцсети и т.п.", Kind.FEATURE, null),
+	YOUTUBE_LIVE("youtubeLive", "YouTube Live", "Чат и команды, Super Chat/стикеры и платное членство канала — через YouTube Data API", Kind.PLATFORMS, null),
+	GAME_EVENTS("gameEvents", "События игры → чат", "Смерти, достижения, боссы и смена измерения объявляются в чаты Twitch, VK и YouTube; счётчик смертей (!смерти, !время)", Kind.FEATURE, null),
+	CHAT_TIMERS("chatTimers", "Таймеры чата", "Периодические сообщения бота в чаты Twitch, VK и YouTube: напоминание о ценнике, соцсети и т.п.", Kind.FEATURE, null),
 	CLIPS("clips", "Клипы и метки Twitch", "Клип и метка стрима при смерти, донате от N и победе над боссом; F10 / /twitch clip — вручную", Kind.FEATURE, "clips:edit channel:manage:broadcast");
 
 	public enum Kind {
@@ -113,13 +114,16 @@ public enum Module {
 		if (event.isVk()) {
 			return VK_VIDEO_LIVE; // все события VK Video Live живут в одном модуле (внутри него — свои флаги в разделе vk)
 		}
+		if (event.isYoutube()) {
+			return YOUTUBE_LIVE; // все события YouTube живут в одном модуле (внутри него — свои флаги в разделе youtube)
+		}
 		if (event.type() == TwitchEvent.Type.DONATION) {
 			return forDonationSource(event.source());
 		}
 		return forEvent(event.type());
 	}
 
-	/** Это интеграция с другой стриминговой площадкой (VK Video Live). */
+	/** Это интеграция с другой стриминговой площадкой (VK Video Live или YouTube Live). */
 	public boolean isPlatform() {
 		return kind == Kind.PLATFORMS;
 	}

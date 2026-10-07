@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 8;
+	public int configVersion = 9;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -62,7 +62,8 @@ public class ModConfig {
 
 	/**
 	 * Включённые модули: follows, subscriptions, bits, raids, channelPoints, twitchChat, chatCommands,
-	 * chatReplies, rewardManagement, goals, overlay, hotkeys, eventLog, donationAlerts, donatePay.
+	 * chatReplies, rewardManagement, goals, fundraisers, overlay, hotkeys, eventLog, donationAlerts, donatePay,
+	 * vkVideoLive, youtubeLive, gameEvents, chatTimers, clips.
 	 * Переключение: /twitch module <id> on|off или экран настроек (Mod Menu).
 	 */
 	public Map<String, Boolean> modules = new LinkedHashMap<>();
@@ -251,6 +252,35 @@ public class ModConfig {
 			}
 			return v.trim().toLowerCase(Locale.ROOT);
 		}
+	}
+
+	// ---------- YouTube Live ----------
+
+	public Youtube youtube = new Youtube();
+
+	/**
+	 * YouTube Data API v3: чтение/отправка чата, платные сообщения и членство канала.
+	 * OAuth-токены хранятся отдельно — в config/twitchcraft-youtube.json.
+	 */
+	public static class Youtube {
+		/** OAuth Client ID приложения типа Desktop из Google Cloud Console. */
+		public String clientId = "";
+		/** Порт loopback-адреса для Desktop OAuth: http://localhost:ПОРТ (без пути). */
+		public int callbackPort = 8640;
+		/** Показывать обычный чат YouTube в Minecraft. */
+		public boolean showChat = true;
+		/** Префикс сообщений YouTube в чате Minecraft. */
+		public String chatPrefix = "&c[YT]&r ";
+		/** Выполнять общие чат-команды из YouTube Live. */
+		public boolean chatCommands = true;
+		/** Обрабатывать Super Chat, Super Stickers и Fan Funding как донаты. */
+		public boolean paidMessages = true;
+		/** Обрабатывать новые и продлённые платные членства и подарки участий во время эфира. */
+		public boolean memberships = true;
+		/** Отправлять автоответы зрителям в YouTube Live (нужен OAuth scope youtube.force-ssl). */
+		public boolean replies = true;
+		/** Писать все неизвестные и служебные сообщения API в logs/latest.log. */
+		public boolean debugEvents = false;
 	}
 
 	// ---------- Цели ----------
@@ -492,7 +522,7 @@ public class ModConfig {
 	/**
 	 * Действия на события самой игры. Ключи: death (смерть), advancement (обычное достижение),
 	 * advancementGoal (цель), advancementChallenge (испытание), boss (убит босс), dimension (смена измерения).
-	 * Поле reply уходит сообщением в чаты Twitch и VK; message/title/sound/commands работают как обычно.
+	 * Поле reply уходит сообщением в чаты Twitch, VK и YouTube; message/title/sound/commands работают как обычно.
 	 * Плейсхолдеры: {cause} {deaths} {deaths_total} {advancement} {advancement_text} {advancement_kind}
 	 * {boss} {killer} {dimension} {stream_time} {session_time} {viewers}.
 	 */
@@ -505,6 +535,8 @@ public class ModConfig {
 		public boolean toTwitch = true;
 		/** Писать события игры в чат VK Video Live. */
 		public boolean toVk = true;
+		/** Писать события игры в чат YouTube Live. */
+		public boolean toYoutube = true;
 		/** На сервере: объявлять и события других игроков (по умолчанию — только свои). */
 		public boolean otherPlayers = false;
 		/** Первые N секунд после входа в мир события не объявляются (загрузка, телепорт в точку возрождения). */
@@ -602,7 +634,7 @@ public class ModConfig {
 
 	// ---------- Таймеры чата (1.7.0) ----------
 
-	/** Периодические сообщения бота в чаты Twitch и VK. */
+	/** Периодические сообщения бота в чаты Twitch, VK и YouTube. */
 	public List<ChatTimer> timers = new ArrayList<>();
 
 	public static class ChatTimer {
@@ -618,6 +650,7 @@ public class ModConfig {
 		/** Куда писать. */
 		public boolean twitch = true;
 		public boolean vk = true;
+		public boolean youtube = true;
 
 		public ChatTimer() {
 		}
@@ -654,9 +687,10 @@ public class ModConfig {
 		/** Победа над боссом (дракон, иссушитель, варден, древний страж). */
 		public boolean markerOnBoss = true;
 		public boolean clipOnBoss = true;
-		/** Публиковать ссылку на готовый клип в чат Twitch / VK. */
+		/** Публиковать ссылку на готовый клип в чаты Twitch, VK и YouTube. */
 		public boolean postClipToTwitch = true;
 		public boolean postClipToVk = true;
+		public boolean postClipToYoutube = true;
 		/** Текст сообщения со ссылкой ({clip_url}, {why}). */
 		public String clipChatText = "🎬 Клип: {clip_url}";
 		/** Не делать клипы чаще, чем раз в N секунд (Twitch сам ограничивает частоту). */
@@ -1306,6 +1340,10 @@ public class ModConfig {
 			vk = defaults.vk;
 			changed = true;
 		}
+		if (!present.contains("youtube")) {
+			youtube = defaults.youtube;
+			changed = true;
+		}
 		// v7 → v8: события игры → чат, таймеры чата, клипы и метки; чат-команды !смерти и !время;
 		// порт входа VK по умолчанию 8638 (как в инструкции), если стоял старый 8632.
 		if (!present.contains("gameEvents")) {
@@ -1336,8 +1374,8 @@ public class ModConfig {
 			vk.callbackPort = 8638;
 			changed = true;
 		}
-		if (!present.contains("configVersion") || configVersion < 8) {
-			configVersion = 8;
+		if (!present.contains("configVersion") || configVersion < 9) {
+			configVersion = 9;
 			changed = true;
 		}
 		return changed;
@@ -1450,6 +1488,16 @@ public class ModConfig {
 		if (vk.chatPrefix == null) vk.chatPrefix = "";
 		if (vk.callbackPort < 1024 || vk.callbackPort > 65535) vk.callbackPort = 8638;
 		if (vk.callbackPort == donations.callbackPort) vk.callbackPort = donations.callbackPort == 8638 ? 8639 : 8638;
+		if (youtube == null) youtube = new Youtube();
+		if (youtube.clientId == null) youtube.clientId = "";
+		youtube.clientId = youtube.clientId.trim();
+		if (youtube.chatPrefix == null) youtube.chatPrefix = "";
+		if (youtube.callbackPort < 1024 || youtube.callbackPort > 65535) youtube.callbackPort = 8640;
+		if (youtube.callbackPort == donations.callbackPort || youtube.callbackPort == vk.callbackPort) {
+			int port = 8640;
+			while (port == donations.callbackPort || port == vk.callbackPort) port++;
+			youtube.callbackPort = port;
+		}
 		if (gameEvents == null) gameEvents = new LinkedHashMap<>();
 		if (gameEventsSettings == null) gameEventsSettings = new GameEventsSettings();
 		gameEventsSettings.quietSecondsAfterJoin = Math.max(0, Math.min(gameEventsSettings.quietSecondsAfterJoin, 600));
@@ -1956,7 +2004,7 @@ public class ModConfig {
 			a.cooldown = 15;
 		}));
 
-		// События игры → чат Twitch и VK (reply). message/title/commands тоже работают, если захочется эффектов.
+		// События игры → чаты Twitch, VK и YouTube (reply). message/title/commands тоже работают, если захочется эффектов.
 		c.gameEvents.put("death", new Action().with(a -> {
 			a.reply = "💀 {cause} — смерть №{deaths} за стрим (всего {deaths_total}). F в чат!";
 		}));

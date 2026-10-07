@@ -33,6 +33,7 @@ class TimerEditScreen extends BaseScreen {
 		row(form, r++, "Минимум сообщений", Widgets.intField(font, Widgets.FIELD, draft.minChatMessages, 0, 1000, v -> draft.minChatMessages = v));
 		row(form, r++, "Чат Twitch", Widgets.toggle("Писать", draft.twitch, v -> draft.twitch = v, Widgets.FIELD, "Нужно право user:write:chat"));
 		row(form, r++, "Чат VK Video Live", Widgets.toggle("Писать", draft.vk, v -> draft.vk = v, Widgets.FIELD, "Если VK подключён"));
+		row(form, r++, "Чат YouTube Live", Widgets.toggle("Писать", draft.youtube, v -> draft.youtube = v, Widgets.FIELD, "Если YouTube подключён"));
 		content.addChild(form);
 		content.addChild(Widgets.gray(font, "Минимум сообщений — сколько сообщений зрителей должно появиться с прошлого напоминания; 0 — писать всегда"));
 

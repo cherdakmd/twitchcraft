@@ -83,6 +83,7 @@ class ClipsScreen extends BaseScreen {
 		r = 0;
 		row(post, r++, "Ссылку в чат Twitch", toggle("Писать", clips.postClipToTwitch, v -> clips.postClipToTwitch = v));
 		row(post, r++, "Ссылку в чат VK", toggle("Писать", clips.postClipToVk, v -> clips.postClipToVk = v));
+		row(post, r++, "Ссылку в чат YouTube", toggle("Писать", clips.postClipToYoutube, v -> clips.postClipToYoutube = v));
 		row(post, r++, "Текст сообщения", Widgets.textField(font, Widgets.FIELD, clips.clipChatText, v -> {
 			clips.clipChatText = v;
 			changed = true;

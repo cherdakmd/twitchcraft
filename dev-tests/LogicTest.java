@@ -416,7 +416,7 @@ public class LogicTest {
         Map<String, String> fundVars = Placeholders.of(fundDone, "Steve");
         check("fund: placeholders for FUND event", "Сбор".equals(fundVars.get("goal")) && "5000".equals(fundVars.get("target")) && "2".equals(fundVars.get("times"))
                 && "5000 ₽".equals(fundVars.get("sum")) && "RUB".equals(fundVars.get("currency")) && "Vasya".equals(fundVars.get("user")));
-        check("fund: Module.forEvent(FUND) = FUNDRAISERS, 17 modules", Module.forEvent(TwitchEvent.Type.FUND) == Module.FUNDRAISERS && Module.values().length == 20
+        check("fund: Module.forEvent(FUND) = FUNDRAISERS, 17 modules", Module.forEvent(TwitchEvent.Type.FUND) == Module.FUNDRAISERS && Module.values().length == 21
                 && Module.byId("fundraisers") == Module.FUNDRAISERS);
         ModConfig.Fundraiser badFund = new ModConfig.Fundraiser("  X  ", null, -5, null);
         badFund.color = "Rainbow";
@@ -524,7 +524,7 @@ public class LogicTest {
                 + "\"follow\":{\"message\":\"&d{user} follows\"},\"rewards\":{\"Зомби\":{\"commands\":[\"summon zombie\"]}}}";
         ModConfig mig = ModConfig.fromJson(v2);
         boolean changed = mig.upgradeFrom(v2);
-        check("v2 upgraded (to current version)", changed && mig.configVersion == 8 && mig.donationTiers.size() == 51 && !mig.fundraisers.isEmpty());
+        check("v2 upgraded (to current version)", changed && mig.configVersion == 9 && mig.donationTiers.size() == 51 && !mig.fundraisers.isEmpty());
         check("v2 enabled flags -> modules", !mig.isEnabled(Module.TWITCH_CHAT) && mig.isEnabled(Module.OVERLAY) && mig.isEnabled(Module.FOLLOWS));
         check("v2 follow gets loot + {loot} in message", mig.follow.loot != null && !mig.follow.loot.isEmpty() && mig.follow.message.contains("{loot}") && mig.follow.message.startsWith("&d{user} follows"));
         check("v2 user data preserved", mig.clientId.equals("abc") && mig.twitchChat.prefix.equals("[T] ") && mig.overlay.corner.equals("top-right")
@@ -801,7 +801,7 @@ public class LogicTest {
         String v3cfg = "{\"configVersion\":3,\"clientId\":\"abc\",\"modules\":{\"overlay\":false},\"follow\":{\"message\":\"hi\"},\"goals\":[{\"name\":\"Мои\",\"type\":\"follows\",\"target\":5}]}";
         ModConfig m4 = ModConfig.fromJson(v3cfg);
         boolean up4 = m4.upgradeFrom(v3cfg);
-        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 8 && m4.donations != null && m4.donationTiers.size() == 51 && m4.donationAlertsTiers.isEmpty());
+        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 9 && m4.donations != null && m4.donationTiers.size() == 51 && m4.donationAlertsTiers.isEmpty());
         check("v3 user data preserved + donation goal appended", m4.clientId.equals("abc") && !m4.isEnabled(Module.OVERLAY) && m4.follow.message.startsWith("hi")
                 && m4.goals.size() == 2 && m4.goals.get(0).name.equals("Мои") && "donationSum".equals(m4.goals.get(1).type));
         check("v4 output stable, no warnings", !ModConfig.fromJson(m4.toJson()).upgradeFrom(m4.toJson()) && ModConfig.findWarnings(m4.toJson()).isEmpty()
@@ -810,7 +810,7 @@ public class LogicTest {
         String v4cfg = "{\"configVersion\":4,\"clientId\":\"abc\",\"modules\":{\"goals\":false},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}},\"donations\":{\"currency\":\"USD\"}}";
         ModConfig m5 = ModConfig.fromJson(v4cfg);
         boolean up5 = m5.upgradeFrom(v4cfg);
-        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 8 && m5.fundraisers.size() == 1
+        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 9 && m5.fundraisers.size() == 1
                 && m5.fundraisers.get(0).name.equals("Сбор") && m5.fundraiserSettings != null && m5.chatCommands.containsKey("fund") && m5.chatCommands.containsKey("mine")
                 && m5.clientId.equals("abc") && !m5.isEnabled(Module.GOALS) && m5.isEnabled(Module.FUNDRAISERS) && m5.donations.currency.equals("USD"));
         check("v5 output stable, no warnings", !ModConfig.fromJson(m5.toJson()).upgradeFrom(m5.toJson()) && ModConfig.findWarnings(m5.toJson()).isEmpty());
@@ -894,14 +894,14 @@ public class LogicTest {
                 + "\"2000\":{\"name\":\"В небо\"},\"5000\":{\"name\":\"Легенда\"}},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}}}";
         ModConfig dp5m6 = ModConfig.fromJson(dp5legacy);
         boolean dp5up6 = dp5m6.upgradeFrom(dp5legacy);
-        check("v5 → v6: untouched legacy table replaced by the 51-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 8
+        check("v5 → v6: untouched legacy table replaced by the 51-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 9
                 && dp5m6.donationTiers.size() == 51 && DonationPresets.isBad(dp5m6.donationTiers.get("30")) && dp5m6.chatCommands.containsKey("ценник")
                 && dp5m6.chatCommands.containsKey("плохое") && dp5m6.chatCommands.containsKey("хорошее") && dp5m6.chatCommands.containsKey("mine"));
         check("v6 output stable, no warnings", !ModConfig.fromJson(dp5m6.toJson()).upgradeFrom(dp5m6.toJson()) && ModConfig.findWarnings(dp5m6.toJson()).isEmpty());
         String dp5custom = "{\"configVersion\":5,\"donationTiers\":{\"1\":{\"name\":\"Спасибо\"},\"100\":{\"name\":\"Моё\",\"commands\":[\"say hi\"]}}}";
         ModConfig dp5keep = ModConfig.fromJson(dp5custom);
         boolean dp5upKeep = dp5keep.upgradeFrom(dp5custom);
-        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 8 && dp5keep.donationTiers.size() == 2
+        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 9 && dp5keep.donationTiers.size() == 2
                 && dp5keep.donationTiers.get("100").name.equals("Моё") && dp5keep.chatCommands.containsKey("ценник"));
         String dp5renamed = dp5legacy.replace("\"Салют\"", "\"Мой салют\"");
         ModConfig dp5keep2 = ModConfig.fromJson(dp5renamed);
@@ -913,7 +913,7 @@ public class LogicTest {
         String dp5v6json = dp5v6src.toJson();
         ModConfig dp5v6 = ModConfig.fromJson(dp5v6json);
         check("v6 config with a tiny table and without !ценник: no upgrade, nothing added", !dp5v6.upgradeFrom(dp5v6json)
-                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 8);
+                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 9);
         Map<String, String> dp5vars = Placeholders.of(dp5e30, "Steve");
         dp5vars.putAll(DonationPresets.placeholders(dc.donationTiers));
         dp5vars.put("donation_currency", "₽");
@@ -1304,7 +1304,7 @@ public class LogicTest {
             String m7json = m7src.toJson().replace("\"vk\":", "\"vkOld\":"); // как будто секции vk ещё не было
             ModConfig m7 = ModConfig.fromJson(m7json);
             boolean m7up = m7.upgradeFrom(m7json);
-            check("v6 → v7(+8): untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 8", m7up && m7.configVersion == 8
+            check("v6 → v9: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 9", m7up && m7.configVersion == 9
                     && m7.rewards.size() == 3 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*")
                     && m7.vk != null && m7.vk.callbackPort > 0);
             ModConfig m7own = ModConfig.createDefault();
@@ -1583,7 +1583,62 @@ public class LogicTest {
             check("v1.7 block threw: " + e, false);
         }
 
-        System.out.println("== v1.7: migration v7 -> v8 (game events, timers, clips, VK port 8632 → 8638) ==");
+        System.out.println("== YouTube Live: event mapping, PKCE, platform routing, and config ==");
+        {
+            com.google.gson.JsonObject ytChatJson = j("{\"id\":\"chat-1\",\"snippet\":{\"type\":\"textMessageEvent\",\"textMessageDetails\":{\"messageText\":\"!zombie hi\"}},\"authorDetails\":{\"channelId\":\"UC123\",\"displayName\":\"Viewer\",\"isChatModerator\":true}}");
+            TwitchEvent ytChat = dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(ytChatJson);
+            check("YouTube text message keeps explicit platform, channel ID and moderator permission", ytChat != null
+                    && ytChat.type() == TwitchEvent.Type.CHAT && ytChat.isYoutube() && ytChat.userId().equals("UC123")
+                    && ytChat.message().equals("!zombie hi") && ytChat.permission() == TwitchEvent.Permission.MODERATOR
+                    && Module.forEvent(ytChat) == Module.YOUTUBE_LIVE && Placeholders.of(ytChat, "Steve").get("platform").equals("YouTube Live"));
+
+            TwitchEvent ytSuperChat = dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(j("{\"id\":\"paid-1\",\"snippet\":{\"type\":\"superChatEvent\",\"superChatDetails\":{\"amountMicros\":\"55000000\",\"currency\":\"RUB\",\"userComment\":\"Спасибо\"}},\"authorDetails\":{\"channelId\":\"UC456\",\"displayName\":\"Sponsor\"}}"));
+            check("YouTube Super Chat maps to shared DONATION, preserving amount/currency/source", ytSuperChat != null
+                    && ytSuperChat.type() == TwitchEvent.Type.DONATION && ytSuperChat.amount() == 55 && ytSuperChat.currency().equals("RUB")
+                    && ytSuperChat.source().equals(TwitchEvent.SOURCE_YOUTUBE_SUPER_CHAT) && ytSuperChat.isYoutube()
+                    && ytSuperChat.describe().contains("YouTube Super Chat"));
+
+            TwitchEvent ytMember = dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(j("{\"id\":\"member-1\",\"snippet\":{\"type\":\"newSponsorEvent\",\"newSponsorDetails\":{\"memberLevelName\":\"Gold\"}},\"authorDetails\":{\"channelId\":\"UC789\",\"displayName\":\"Member\",\"isChatSponsor\":true}}"));
+            TwitchEvent ytGift = dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(j("{\"id\":\"gift-1\",\"snippet\":{\"type\":\"membershipGiftingEvent\",\"membershipGiftingDetails\":{\"giftMembershipsCount\":5,\"giftMembershipsLevelName\":\"Gold\",\"gifterIsAnonymous\":true}},\"authorDetails\":{\"channelId\":\"UC111\",\"displayName\":\"Gifter\"}}"));
+            check("YouTube paid membership and gift membership map to subscribe/gift actions", ytMember != null
+                    && ytMember.type() == TwitchEvent.Type.SUBSCRIBE && ytMember.isYoutube() && ytMember.tier().equals("Gold")
+                    && ytGift != null && ytGift.type() == TwitchEvent.Type.GIFT_SUB && ytGift.amount() == 5 && ytGift.user().equals("Аноним"));
+            check("YouTube gift-recipient notices and unsupported platform events are not double-counted", dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(j("{\"snippet\":{\"type\":\"giftMembershipReceivedEvent\"}}")) == null
+                    && dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.fromMessage(j("{\"snippet\":{\"type\":\"channelRaidEvent\"}}")) == null);
+
+            String verifier = dev.dedworkshop.twitchcraft.youtube.YoutubeApi.newCodeVerifier();
+            String challenge = dev.dedworkshop.twitchcraft.youtube.YoutubeApi.codeChallenge(verifier);
+            String authorize = dev.dedworkshop.twitchcraft.youtube.YoutubeApi.authorizeUrl("client-id", "http://localhost:8640", "state-1", challenge);
+            check("OAuth Desktop PKCE verifier/challenge use URL-safe 43-character values", verifier.length() == 43 && challenge.length() == 43
+                    && verifier.matches("[A-Za-z0-9_-]+") && challenge.matches("[A-Za-z0-9_-]+"));
+            check("OAuth URL requests code + S256 PKCE, offline refresh and YouTube read/write scopes", authorize.contains("response_type=code")
+                    && authorize.contains("code_challenge_method=S256") && authorize.contains("access_type=offline")
+                    && authorize.contains("youtube.readonly") && authorize.contains("youtube.force-ssl")
+                    && authorize.contains("redirect_uri=http%3A%2F%2Flocalhost%3A8640"));
+
+            dev.dedworkshop.twitchcraft.youtube.YoutubeStore ytStore = new dev.dedworkshop.twitchcraft.youtube.YoutubeStore();
+            ytStore.setTokens("access", "refresh", 3600, dev.dedworkshop.twitchcraft.youtube.YoutubeApi.SCOPES);
+            check("YouTube token store checks read/write scopes separately", ytStore.hasTokens() && ytStore.hasRefreshToken()
+                    && ytStore.canReadChat() && ytStore.canWriteChat());
+            ytStore.scopes = dev.dedworkshop.twitchcraft.youtube.YoutubeApi.SCOPE_READ;
+            check("read-only YouTube token cannot send bot messages", ytStore.canReadChat() && !ytStore.canWriteChat());
+            ytStore.setTokens("refreshed-access", "", 3600, dev.dedworkshop.twitchcraft.youtube.YoutubeApi.SCOPES);
+            boolean sameAccountRefreshPreserved = ytStore.refreshToken.equals("refresh");
+            ytStore.replaceTokens("new-account-access", "", 3600, dev.dedworkshop.twitchcraft.youtube.YoutubeApi.SCOPES);
+            check("YouTube fresh login never reuses another account's refresh token", sameAccountRefreshPreserved
+                    && ytStore.accessToken.equals("new-account-access") && !ytStore.hasRefreshToken());
+
+            ModConfig ytConfig = ModConfig.createDefault();
+            ytConfig.youtube.callbackPort = ytConfig.vk.callbackPort;
+            ytConfig.normalize();
+            check("YouTube config is separate, enabled by default, current version 9, and callback ports stay unique", ytConfig.configVersion == 9
+                    && ytConfig.youtube != null && ytConfig.isEnabled(Module.YOUTUBE_LIVE) && ytConfig.youtube.callbackPort != ytConfig.vk.callbackPort
+                    && ytConfig.youtube.callbackPort != ytConfig.donations.callbackPort);
+            check("YouTube platform prefix and membership wording", ytMember.describe().contains("YouTube")
+                    && ytMember.shortText().startsWith("YouTube ") && ytChat.describe().startsWith("§c[YouTube]"));
+        }
+
+        System.out.println("== v1.7: migration v7 -> v9 (game events, timers, clips, VK port 8632 → 8638) ==");
         {
             ModConfig m8src = ModConfig.createDefault();
             m8src.configVersion = 7;
@@ -1595,14 +1650,16 @@ public class LogicTest {
             com.google.gson.JsonObject m8obj = j(m8json);
             m8obj.remove("gameEvents");
             m8obj.remove("gameEventsSettings");
+            m8obj.remove("youtube");
             m8obj.remove("timers");
             m8obj.remove("clips");
             String m8old = m8obj.toString();
             ModConfig m8 = ModConfig.fromJson(m8old);
             boolean m8up = m8.upgradeFrom(m8old);
-            check("v7 → v8: sections added, version 8", m8up && m8.configVersion == 8 && m8.gameEvents != null && m8.gameEvents.size() == 6 && m8.gameEventsSettings != null
+            check("v7 → v9: YouTube and v1.7 sections added, version 9", m8up && m8.configVersion == 9 && m8.youtube != null
+                    && m8.gameEvents != null && m8.gameEvents.size() == 6 && m8.gameEventsSettings != null
                     && m8.timers != null && m8.timers.size() == 2 && m8.clips != null && m8.clips.donationFrom == 50);
-            check("v7 → v8: chat commands !смерти and !время added; VK port 8632 → 8638", m8.findChatCommand("смерти") != null && m8.findChatCommand("время") != null
+            check("v7 → v9: chat commands !смерти and !время added; VK port 8632 → 8638", m8.findChatCommand("смерти") != null && m8.findChatCommand("время") != null
                     && m8.vk.callbackPort == 8638);
             ModConfig m8custom = ModConfig.createDefault();
             m8custom.configVersion = 7;
@@ -1610,7 +1667,7 @@ public class LogicTest {
             String m8customJson = m8custom.toJson();
             ModConfig m8c = ModConfig.fromJson(m8customJson);
             m8c.upgradeFrom(m8customJson);
-            check("v7 → v8: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 8);
+            check("v7 → v9: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 9);
             String m8stable = m8.toJson();
             check("v8 output stable, no warnings", !ModConfig.fromJson(m8stable).upgradeFrom(m8stable) && ModConfig.findWarnings(m8stable).isEmpty()
                     && ModConfig.createDefault().vk.callbackPort == 8638);
@@ -1622,7 +1679,7 @@ public class LogicTest {
             m8norm.normalize();
             check("normalize clamps timers and clips", m8norm.timers.get(0).intervalMinutes >= 1 && m8norm.timers.get(0).minChatMessages == 0
                     && m8norm.clips.clipCooldownSeconds >= 0 && m8norm.clips.donationFrom == 0);
-            check("Module list has 20 entries incl. new ones (chat timers / game events / clips)", Module.values().length == 20
+            check("Module list has 21 entries incl. YouTube Live, chat timers, game events, and clips", Module.values().length == 21
                     && Module.byId("gameEvents") == Module.GAME_EVENTS && Module.byId("chatTimers") == Module.CHAT_TIMERS && Module.byId("clips") == Module.CLIPS);
         }
 
