@@ -1,4 +1,4 @@
-# TwitchCraft 1.10.0 — гайд и мануал
+# TwitchCraft 1.11.0 — гайд и мануал
 
 > **Гайд** (часть I) — пошагово, от установки до первого стрима. Читай подряд.
 > **Мануал** (часть II) — справочник по каждой функции, полю конфига и команде. Читай по оглавлению.
@@ -100,7 +100,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    нажми *Install*. В лаунчере появится профиль **fabric-loader-26.3**.
 2. **Fabric API** для 26.3 — файл `fabric-api-0.161.0+26.3.jar` (или новее для 26.3):
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>.
-3. **TwitchCraft** — файл **[`twitchcraft-1.10.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+3. **TwitchCraft** — файл **[`twitchcraft-1.11.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
    из вложения релиза на GitHub (в `release/` репозитория лежат jar 1.7.0 и 1.7.1; если нужной версии во вложениях нет —
    собери сам: `./gradlew build`, готовые файлы появятся в `build/libs`).
    Страница опубликованных версий: <https://github.com/cherdakmd/twitchcraft/releases>.
@@ -117,7 +117,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    Если папки `mods` нет — создай.
 6. Запусти лаунчер, выбери профиль **fabric-loader-26.3**, нажми *Играть*.
 
-Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.10.0** (и **Артефакты**, если поставил аддон).
+Проверка: в главном меню → *Моды* (если есть Mod Menu) в списке есть **TwitchCraft 1.11.0** (и **Артефакты**, если поставил аддон).
 Или зайди в любой мир и набери `/twitch` — появится справка, а `/twitch addons` покажет подключённые аддоны.
 
 > **Обновление с прошлых версий**: просто замени jar. Конфиг дополнится новыми разделами сам, твои награды и команды
@@ -323,8 +323,9 @@ Twitch или в студии VK — называй их так же. Запис
 1. В Google Cloud Console создай проект, включи **YouTube Data API v3**, настрой экран согласия OAuth и создай OAuth Client ID типа **Desktop app**.
 2. Открой `/twitch config` → **YouTube Live**: вставь Client ID (или `/twitch youtube client <Client ID>`), проверь callback `http://localhost:8640` и включи модуль `youtubeLive`. Порт можно изменить в настройках; это loopback URL без пути.
 3. Выполни `/twitch youtube login` (или нажми **Войти в YouTube Live**). Откроется браузер; войди в аккаунт, который владеет каналом, подтверди права и дождись callback. Вход — Authorization Code + PKCE с проверкой `state`; если localhost callback не сработал, передай полный URL: `/twitch youtube code <URL>`.
-4. Мод проверит канал и ищет активную трансляцию. Проверяй состояние `/twitch youtube`; вручную переподключить — `/twitch youtube connect`, отключить — `/twitch youtube disconnect`. Автоподключение выполняется при следующем входе в мир.
-5. Проверь флаги YouTube на экране настроек: `showChat`, `chatCommands`, `paidMessages`, `memberships`, `replies`. Тесты: `/twitch youtube test chat !zombie`, `member`, `gift`, `superchat`.
+4. Мод проверит канал и найдёт активную трансляцию. Проверяй состояние `/twitch youtube` и `/twitch youtube info` (эфир, зрители, квота, следующая попытка); вручную переподключить — `/twitch youtube connect`, отключить — `/twitch youtube disconnect`. Автоподключение выполняется при следующем входе в мир. Если эфира нет, поиск повторяется каждые 5 минут и почти не тратит квоту.
+5. Проверь флаги YouTube на экране настроек: `showChat`, `chatCommands`, `paidMessages`, `memberships`, `replies`, `trackViewers`, `quotaGuard`, `control`, `showModeration`. Тесты: `/twitch youtube test chat !zombie`, `member`, `milestone`, `gift`, `superchat`, `sticker`, `funding`, `ban`.
+6. Дневная квота YouTube Data API (10 000 единиц на проект) видна в `/twitch youtube info`; порог — `youtube.quotaBudget` (по умолчанию 9 000). Когда порог исчерпан, мод сам останавливает опрос и возобновляет его после сброса Google.
 
 Access/refresh tokens и профиль сохраняются отдельно в `config/twitchcraft-youtube.json`; файл секретный. Client ID остаётся в `config/twitchcraft.json`. Выход с отзывом токена: `/twitch youtube logout`. Подробности: [раздел 22б](#22б-youtube-live).
 
@@ -401,7 +402,7 @@ Access/refresh tokens и профиль сохраняются отдельно 
 | `donationAlerts` | DonationAlerts | донаты DonationAlerts в реальном времени | — |
 | `donatePay` | DonatePay | донаты DonatePay (опрос API) | — |
 | `vkVideoLive` | VK Video Live | чат, чат-команды, награды за баллы и фолловы с live.vkvideo.ru (что именно — флаги раздела `vk`) | — (права приложения VK) |
-| `youtubeLive` | YouTube Live | чат, отдельные чат-команды, Super Chat/стикеры, платные членства и подарки; YouTube Data API v3 (флаги раздела `youtube`) | OAuth scopes `youtube.readonly`, `youtube.force-ssl` |
+| `youtubeLive` | YouTube Live | чат, отдельные чат-команды, Super Chat/стикеры, платные членства и подарки, зрители эфира, учёт дневной квоты Data API, управление трансляцией и модерация чата; YouTube Data API v3 (флаги раздела `youtube`) | OAuth scopes `youtube.readonly`, `youtube.force-ssl` |
 | `gameEvents` | События игры → чат | смерти со счётчиком, достижения, боссы, смена измерения → Twitch / VK / YouTube; `!смерти`, `!время` | OAuth/чат scope платформы назначения |
 | `chatTimers` | Таймеры чата | периодические сообщения бота, когда чат живой (ценник раз в 15 мин, соцсети…) | scope отправки чата каждой выбранной платформы |
 | `clips` | Клипы и метки Twitch | клип и метка стрима Twitch при смерти / донате от N / боссе; F10, `/twitch clip`, `/twitch marker`; ссылку можно отправить в Twitch / VK / YouTube | `clips:edit`, `channel:manage:broadcast` для Twitch |
@@ -621,6 +622,8 @@ cheer: { "1": A, "100": B, "1000": C }
 | `{donation_prices_bad}` `{donation_prices_good}` `{donation_prices}` `{donation_currency}` | **в любом действии**: ценник донатов одной строкой из общей таблицы `donationTiers` — только ☠ («30 Тыква · 50 Голод · …»), только ★, всё вместе (с префиксами); символ основной валюты. Отключённые записи пропускаются. Для `!плохое` / `!хорошее` |
 | `{deaths}` `{deaths_total}` `{advancements}` `{advancements_total}` `{bosses}` `{bosses_total}` `{last_death}` `{session_time}` | **в любом действии**: счётчики событий игры за сеанс и за всё время (файл `twitchcraft-stats.json`), текст последней смерти, время с запуска игры («1 ч 05 мин»). Для `!смерти` / `!время` |
 | `{stream_time}` `{viewers}` `{live}` `{stream_title}` `{stream_game}` | **в любом действии**: стрим Twitch — «1 ч 20 мин» / «не в эфире» / «неизвестно», зрителей, `да`/`нет`, название, категория. Обновляется раз в минуту (`GET /streams`) |
+| `{youtube_viewers}` `{youtube_live_time}` `{youtube_title}` `{youtube_channel}` `{youtube_broadcast_url}` `{youtube_id}` | **в любом действии**: YouTube Live — зрителей эфира, сколько идёт эфир («1 ч 20 мин»), заголовок трансляции, название канала, ссылку `https://youtu.be/<id>` и id эфира. Пока эфир не найден или `youtube.trackViewers: false` — пусто; зрители и время обновляются раз в `youtube.viewersIntervalSeconds` (раздел 22б) |
+| `{youtube_quota}` `{youtube_quota_left}` | **в любом действии**: сколько единиц дневной квоты YouTube Data API уже израсходовано и сколько осталось до порога `youtube.quotaBudget`. Строка «≈1 234 / 9 000 ед., сброс в 10:00 (через 3 ч 05 мин)» показывается в `/twitch youtube` и `/twitch youtube info` |
 | `{cause}` | событие «смерть»: причина как в игре («Dед утонул», «Dед was slain by Zombie») |
 | `{advancement}` `{advancement_text}` `{advancement_kind}` | события достижений: название, описание, вид (`достижение` / `цель` / `испытание`) |
 | `{boss}` `{killer}` | событие «босс повержен»: кто повержен, кем (пусто, если тобой) |
@@ -1083,13 +1086,25 @@ Client Secret мод не принимает и не хранит. OAuth зап�
   "paidMessages": true,           // Super Chat, Super Sticker и Fan Funding
   "memberships": true,            // новые/продлеваемые членства и групповые подарки
   "replies": true,                // автоответы и /twitch youtube say
-  "debugEvents": false            // расширенная диагностика polling и незнакомых событий
+  "debugEvents": false,           // расширенная диагностика polling и незнакомых событий
+  "pollMaxResults": 2000,         // сообщений за один запрос live chat (200…2000): больше — реже запросы
+  "trackViewers": true,           // зрители и время эфира через videos.list ({youtube_viewers})
+  "viewersIntervalSeconds": 60,   // как часто обновлять данные эфира (15…3600 с; 1 запрос = 1 единица квоты)
+  "quotaBudget": 9000,            // дневной порог квоты Data API в единицах (0 — только лимит Google 10 000)
+  "quotaGuard": true,             // остановить опрос, когда порог исчерпан; возобновится после сброса Google
+  "control": true,                // управление эфиром и модерация: go / title / ban / unban / delete
+  "showModeration": false,        // писать в чат игры действия модераторов YouTube (баны, удаления, спам)
+  "defaultTimeoutSeconds": 300    // тайм-аут по умолчанию для /twitch youtube ban <ник> (0 — постоянный бан)
 }
 ```
 
 Включи модуль `/twitch module youtubeLive on`. Он управляет всей интеграцией; внутри него YouTube-флаги независимы от Twitch `twitchChat`,
 `chatCommands`, `chatReplies` и VK-флагов. `showChat` и `chatCommands` можно выключить по отдельности. `replies` отвечает только за исходящие
 сообщения в YouTube; отправка также требует авторизации с `youtube.force-ssl`, активного эфира и разрешения YouTube API.
+`control` разрешает команды управления эфиром и модерации (`go`, `title`, `ban`, `unban`, `delete`) — они используют тот же scope
+`youtube.force-ssl`, повторно входить в Google не нужно. `showModeration` показывает в чате игры, кого забанили или чьё сообщение удалили;
+в конвейер событий такие сообщения не попадают и наград не выдают. `trackViewers` и `viewersIntervalSeconds` отвечают за `{youtube_viewers}`,
+`quotaBudget` и `quotaGuard` — за дневной расход квоты (см. «Polling, квота и статус эфира» ниже).
 
 ### События YouTube и общие действия
 
@@ -1108,18 +1123,51 @@ Client Secret мод не принимает и не хранит. OAuth зап�
 
 `giftMembershipReceivedEvent` (уведомление получателя группового подарка) и служебные типы игнорируются: групповой подарок учитывается один раз
 по `membershipGiftingEvent`. Super Chat / Sticker обрабатываются только при `paidMessages: true`; членства — при `memberships: true`.
+
+Служебные типы (`placeholderMessageEvent`, `viewerEngagementMessageEvent`, `pollEvent`, `giftMembershipReceivedEvent`) мод пропускает молча и не
+пишет их в лог как «неизвестные». Отдельно читаются сообщения модерации — они не становятся событиями, но при `showModeration: true` видны в чате игры:
+
+| type | Что показывает мод |
+|---|---|
+| `userBannedEvent` | «⚠ Ник получил тайм-аут 5 мин» (`banType: temporary`) или «⚠ Ник заблокирован в чате» (`permanent`) |
+| `markChatItemAsSpamEvent` | «⚠ Сообщение Ник помечено как спам» |
+| `markChatItemsAsDeletedEvent` | «⚠ Сообщения удалены модератором» |
+
+Проверить разбор таких сообщений без эфира: `/twitch youtube test ban`.
 YouTube не предоставляет Twitch-фолловы, рейды, Cheers/битсы или активации Channel Points — действий и подписок для них нет.
 
-### Polling, история и статус эфира
+### Polling, квота и статус эфира
 
 `YoutubeLive` ищет канал OAuth-аккаунта через `channels.list`, затем активную трансляцию через `liveBroadcasts.list(broadcastStatus=active)`.
-После обнаружения `liveChatId` читает `liveChatMessages.list`. Первый успешный ответ используется только для получения `nextPageToken` и
-`pollingIntervalMillis`: его сообщения намеренно пропускаются, чтобы не исполнять старые команды. Дальше каждый запрос продолжает с предыдущим
-`nextPageToken`; следующий запрос планируется не раньше `pollingIntervalMillis` (с нижней защитной границей 1 с). Ошибка истёкшего page token
-возвращает polling к новой точке отсчёта, не проигрывая накопленную историю. Если эфира нет или чат завершился — поиск повторяется с паузой.
-Учитывай квоту YouTube Data API: не запускай несколько экземпляров мода с одним Client ID без необходимости и следи за API quota в Google Cloud.
+Профиль канала кэшируется на 30 минут — `channels.list` не вызывается на каждом круге поиска. Пока эфира нет, поиск повторяется с нарастающим
+интервалом: 30 с → 1 мин → … → 5 мин (верхняя граница), поэтому простой канал тратит единицы квоты, а не тысячи. Как только эфир найден,
+интервал поиска сбрасывается.
 
-Статус: `/twitch youtube` и экран **YouTube Live** показывают вход, модуль, канал, активный `liveChatId`, флаги и polling. Команды:
+После обнаружения `liveChatId` читает `liveChatMessages.list` (стоимость — 5 единиц за запрос). Первый успешный ответ используется только для
+получения `nextPageToken` и `pollingIntervalMillis`: его сообщения намеренно пропускаются, чтобы не исполнять старые команды. Дальше каждый запрос
+продолжает с предыдущим `nextPageToken`; следующий запрос планируется не раньше `pollingIntervalMillis` (с нижней защитной границей 1 с). Ошибка
+истёкшего page token возвращает polling к новой точке отсчёта, не проигрывая накопленную историю. За один запрос мод берёт `youtube.pollMaxResults`
+сообщений (по умолчанию 2000 — максимум API): при плотном чате это в разы меньше запросов и расхода квоты, чем 200.
+
+Ошибки и сбои сети не приводят к долбёжке API: после каждой неудачи пауза удваивается — 2 с → 4 с → 8 с → … → 60 с (верхняя граница), а после успешного
+запроса возвращается к обычному интервалу. На `429` и `503` мод уважает заголовок `Retry-After` от Google. Ответ `quotaExceeded` (403) и
+исчерпание порога `youtube.quotaBudget` останавливают опрос: мод один раз пишет в чат игры, сколько единиц израсходовано и когда квота сбросится,
+и ждёт — не дольше 30 минут за подход и до сброса Google (полночь по тихоокеанскому времени США). Если порог увеличил или снял, опрос возобновится
+сразу после сохранения настроек (`/twitch reload`) или `/twitch youtube connect`.
+
+Расход квоты мод считает сам (Google не возвращает его в ответах) по опубликованным ценам: `liveChatMessages.list` — 5, `channels.list`,
+`liveBroadcasts.list`, `videos.list` — 1, записывающие операции (`liveChatMessages.insert/delete`, `liveChatBans.insert/delete`,
+`liveBroadcasts.update/transition`) — 50. Цена `liveBroadcasts.transition` Google не опубликована — мод считает её с запасом как обычную запись.
+Счётчик привязан к Client ID (квота считается на проект Google Cloud, а не на аккаунт), сохраняется в `config/twitchcraft-youtube.json`,
+переживает перезапуск игры и обнуляется на новые квотные сутки. Смотреть: `/twitch youtube` или `/twitch youtube info`.
+
+Данные эфира (зрители, время начала, заголовок) приходят из `videos.list?part=snippet,liveStreamingDetails` — 1 единица квоты раз в
+`youtube.viewersIntervalSeconds` (по умолчанию 60 с, минимум 15 с) и только пока эфир активен. Отсюда берутся `{youtube_viewers}`,
+`{youtube_live_time}`, `{youtube_title}` и `{youtube_broadcast_url}`. Если `trackViewers: false`, запрос не делается вовсе.
+Когда чат завершился (`offlineAt`, `liveChatEnded`) или эфир пропал, мод возвращается к поиску трансляции, а счётчики эфира обнуляются.
+
+Статус: `/twitch youtube` показывает вход, модуль, канал, активный `liveChatId`, флаги, расход квоты и зрителей; `/twitch youtube info` —
+то же плюс id и ссылку эфира, время начала, сколько эфир идёт, участников чата, следующую попытку опроса и последнюю ошибку. Команды:
 
 | Команда | Назначение |
 |---|---|
@@ -1128,9 +1176,46 @@ YouTube не предоставляет Twitch-фолловы, рейды, Cheer
 | `/twitch youtube login` / `cancel` / `code <полный URL>` | начать вход / отменить / обработать URL callback вручную |
 | `/twitch youtube connect` / `disconnect` | подключить / отключить; после ручного отключения переподключение — через `connect` |
 | `/twitch youtube say <текст>` | тестово отправить сообщение в активный чат |
-| `/twitch youtube logout` | отозвать токен и удалить локальные credentials |
+| `/twitch youtube info` | подробный статус: эфир, зрители, время, квота, участники, следующая попытка, ошибки |
+| `/twitch youtube go live\|testing\|complete` | начать эфир / перейти в режим теста / завершить трансляцию (`liveBroadcasts.transition`) |
+| `/twitch youtube title <текст>` | поменять заголовок трансляции (`liveBroadcasts.update`) |
+| `/twitch youtube ban <ник\|channelId> [секунды]` | тайм-аут зрителя; без секунд — `youtube.defaultTimeoutSeconds`, `0` — постоянный бан |
+| `/twitch youtube unban <ник\|id бана>` | снять бан/тайм-аут (`liveChatBans.delete`) |
+| `/twitch youtube delete <ник\|id сообщения>` | удалить последнее сообщение зрителя (`liveChatMessages.delete`) |
+| `/twitch youtube logout` | отозвать токен и удалить локальные credentials (счётчик квоты сохраняется) |
 | `/twitch youtube debug on\|off` | сохранять подробности API/polling в лог |
-| `/twitch youtube test chat <текст>` / `member` / `gift` / `superchat` | синтетические события; реальные API-запросы не выполняются |
+| `/twitch youtube test chat <текст>` / `member` / `milestone` / `gift` / `superchat` / `sticker` / `funding` / `ban` | синтетические события; реальные API-запросы не выполняются |
+
+### Управление эфиром и модерация чата
+
+Всё это работает через публичный YouTube Data API v3 и уже выданный при входе scope `youtube.force-ssl` — повторный вход в Google не нужен.
+Нужны включённый модуль `youtubeLive`, вход под аккаунтом владельца канала (или модератора чата) и флаг `youtube.control`.
+
+| Действие | Метод API | Цена, единиц |
+|---|---|---|
+| `go testing` / `go live` / `go complete` | `liveBroadcasts.transition` | 50 (оценка: Google цену не публикует) |
+| `title <текст>` | `liveBroadcasts.list` + `liveBroadcasts.update` | 1 + 50 |
+| `ban <ник> [сек]` | `liveChatBans.insert` (`temporary` / `permanent`) | 50 |
+| `unban <ник\|id>` | `liveChatBans.delete` | 50 |
+| `delete <ник\|id>` | `liveChatMessages.delete` | 50 |
+
+Какая трансляция управляется: сначала активная (`broadcastStatus=active`), а если активной нет — ближайшая запланированная
+(`broadcastStatus=upcoming`, самая ранняя `scheduledStartTime`). `go testing` доступен только если у трансляции включён мониторинг потока
+(`contentDetails.monitorStream.enableMonitorStream`), `go live` — если видеопоток уже идёт в Studio/OBS; иначе Google отвечает ошибкой,
+которую мод переводит в понятный текст («поток не активен», «трансляция уже в этом состоянии», «нет прав на трансляции»,
+«нельзя забанить владельца или модератора»).
+
+Кого банить/удалять: ник берётся из реестра участников чата, который мод ведёт во время опроса (300 последних зрителей, запись живёт 6 часов),
+поэтому команды работают и без id. Можно передать и точный `channelId` (начинается с `UC`), id сообщения или id бана. Если нику соответствует
+несколько зрителей, мод ничего не делает и перечисляет варианты — лучше передать `channelId`. Свои баны мод запоминает, поэтому
+`unban <ник>` снимает именно тот тайм-аут, который был выдан из игры.
+
+Чего публичный API **не позволяет** (это только YouTube Studio / Live Control Room): медленный режим чата, режим «только участники/подписчики»,
+полное отключение чата, метки и главы трансляции, а также запуск и остановка самого видеопотока (энкодера). Мод не имитирует эти функции:
+`go live` переводит трансляцию в статус live на стороне YouTube, но поток всё равно нужно запустить в OBS/Studio.
+
+На экране **YouTube Live** те же действия продублированы кнопками: «В эфир», «Тест», «Завершить», «Сменить заголовок» (поле заголовка рядом),
+«Обновить данные» (зрители и квота немедленно) и ссылка «Квоты Google Cloud» на консоль проекта.
 
 Исходящие сообщения игры (события игры, таймеры, ссылки Twitch-клипов) могут быть направлены в YouTube отдельными флагами
 `gameEventsSettings.toYoutube`, `timers[].youtube`, `clips.postClipToYoutube`; это не включает YouTube-чат обратно в игру.
@@ -1481,7 +1566,7 @@ Vasya зафолловил канал
 | **Цели** | список целей с прогрессом: *+ Добавить*, *Сбросить прогресс*, у каждой — *Тест*, *Изменить*, ✖; редактор цели — имя, тип, порог, повторять, включена, действие |
 | **Сборы средств (боссбар)** | список сборов с прогрессом (`Сбор · 3 500/10 000 ₽ · 35%`), *Изменить*, *Тест*, ✖; настройки полос (отступ сверху, секунды последнего вклада, анимация); *+ Добавить*, *Сбросить прогресс*. Редактор сбора — имя, заголовок, цель, **собрано** (правится руками), цвет, стиль, формат текста; что засчитывать (донаты, за 1 битс, за подписку, за 1 балл); показывать / включён / спрятать после закрытия; кнопка действия «когда сбор закрыт» |
 | **Донаты** | DonationAlerts (Client ID, вход, статус), DonatePay (ключ, статус), общие настройки, три кнопки таблиц эффектов, *Тест доната* |
-| **YouTube Live** | OAuth Client ID, loopback callback, отдельные флаги чата/команд/донатов/членств/ответов; вход/выход, подключение/отключение, debug и тесты |
+| **YouTube Live** | OAuth Client ID, loopback callback, отдельные флаги чата/команд/донатов/членств/ответов; вход/выход, подключение/отключение, debug и тесты; блок «Эфир» — зрители, время эфира, заголовок и ссылка, кнопки *В эфир* / *Тест* / *Завершить*, поле заголовка с *Сменить заголовок*, *Обновить данные*; блок «Опрос чата и квота» — `pollMaxResults`, `trackViewers`, `viewersIntervalSeconds`, `quotaBudget`, `quotaGuard`, строка расхода и ссылка *Квоты Google Cloud*; блок «Управление эфиром и модерация» — `control`, `showModeration`, `defaultTimeoutSeconds` |
 | **События игры → чат** | шесть событий (смерть, достижение, цель, испытание, босс, измерение) — *Изменить* (редактор действия, поле «Объявление в чаты») и *Тест*; куда писать (Twitch / VK / YouTube), чужие достижения, тишина после входа, хранить счётчик; счётчики за сеанс и за всё время; *Обнулить счётчики сеанса* |
 | **Клипы и метки** | состояние Twitch-стрима и прав, счётчики; *Сделать клип сейчас*, *Поставить метку*; когда срабатывать (смерть / донат от N / босс — метка и клип отдельно); ссылка в чаты Twitch / VK / YouTube, текст сообщения, кулдауны. Применяется при закрытии |
 | **Таймеры чата** | список таймеров (`ценник · 15 мин · чат 3+ · Twitch+VK+YT · через 7 мин`), *Изменить*, *Сейчас* (написать в чат), ✖, *+ Добавить*; редактор — имя, включён, интервал, минимум сообщений, Twitch/VK/YouTube, текст, *Предпросмотр* (текст с подставленными значениями — только тебе) |
@@ -1539,12 +1624,16 @@ Vasya зафолловил канал
 | `/twitch vk app <id> <секрет>` / `channel <ссылка>` | приложение / канал |
 | `/twitch vk login` / `code <код>` / `cancel` / `logout` | вход через браузер / код вручную / отмена / выход |
 | `/twitch vk connect` / `disconnect` / `say <текст>` / `rewards sync` / `debug on\|off` | подключение, чат VK, создание наград, подробный лог (раздел 22а) |
-| `/twitch youtube` | статус YouTube Live, Client ID, OAuth и флаги |
+| `/twitch youtube` | статус YouTube Live, Client ID, OAuth, флаги, расход квоты и зрители эфира |
+| `/twitch youtube info` | подробно: эфир и ссылка, зрители, время, заголовок, квота, участники чата, следующая попытка, ошибки |
 | `/twitch youtube client <id>` | сохранить Google OAuth Desktop Client ID |
 | `/twitch youtube login` / `cancel` / `code <URL>` / `logout` | вход, отмена, обработка callback URL, выход |
 | `/twitch youtube connect` / `disconnect` / `say <текст>` | соединение и отправка в активный YouTube чат |
+| `/twitch youtube go live\|testing\|complete` | перевод трансляции в эфир / тест / завершение (`youtube.control`) |
+| `/twitch youtube title <текст>` | новый заголовок трансляции |
+| `/twitch youtube ban <ник> [сек]` / `unban <ник>` / `delete <ник>` | тайм-аут (по умолчанию `youtube.defaultTimeoutSeconds`, `0` — постоянный), снятие бана, удаление последнего сообщения |
 | `/twitch youtube debug on\|off` | подробный YouTube API/polling лог |
-| `/twitch youtube test chat <текст>` / `member` / `gift` / `superchat` | тестовые YouTube-события без API |
+| `/twitch youtube test chat <текст>` / `member` / `milestone` / `gift` / `superchat` / `sticker` / `funding` / `ban` | тестовые YouTube-события без API |
 
 ### Во время стрима
 
@@ -1607,11 +1696,11 @@ Vasya зафолловил канал
 
 | Файл | Содержимое |
 |---|---|
-| `config/twitchcraft.json` | весь конфиг (`configVersion: 9`). Создаётся с примерами при первом запуске; старые версии дополняются автоматически, а прежний файл сохраняется рядом как `twitchcraft.json.bak-v<старая версия>` |
+| `config/twitchcraft.json` | весь конфиг (`configVersion: 10`). Создаётся с примерами при первом запуске; старые версии дополняются автоматически, а прежний файл сохраняется рядом как `twitchcraft.json.bak-v<старая версия>` |
 | `config/twitchcraft-tokens.json` | токены Twitch (**секрет** — никому не показывать, не стримить папку `config`) |
 | `config/twitchcraft-donations.json` | токен DonationAlerts, API-ключ DonatePay, последние обработанные донаты (**секрет**) |
 | `config/twitchcraft-vk.json` | секрет приложения VK Video Live, токены и профиль (**секрет**) |
-| `config/twitchcraft-youtube.json` | access/refresh tokens, OAuth scopes и профиль YouTube (**секрет**); OAuth Client ID находится в основном конфиге |
+| `config/twitchcraft-youtube.json` | access/refresh tokens, OAuth scopes, профиль YouTube и счётчик дневной квоты Data API (день + единицы; не стирается при `logout`) (**секрет**); OAuth Client ID находится в основном конфиге |
 | `config/twitchcraft-goals.json` | прогресс целей и время последнего запуска |
 | `config/twitchcraft-fundraisers.json` | прогресс сборов средств: собрано, число вкладов, последний вклад, сколько раз закрыт (не сбрасывается сам) |
 | `config/twitchcraft-stats.json` | счётчики событий игры за всё время: смерти, достижения, боссы, число сеансов, последняя смерть (`gameEventsSettings.persistStats`) |
@@ -1715,6 +1804,11 @@ Vasya зафолловил канал
 | YouTube: `401`, `invalid_grant` или нет нужных scope | Проверь Client ID типа Desktop и включённый YouTube Data API v3, затем `/twitch youtube logout` → `/twitch youtube login` и подтверди запрошенные права |
 | YouTube чат / команды не появляются в Minecraft | Проверь модуль `youtubeLive`, отдельные флаги `showChat` / `chatCommands` и `/twitch youtube debug on`; первая страница намеренно пропускается |
 | Ответы или объявления не уходят в YouTube | Нужны активный эфир/live chat, модуль `youtubeLive`, `youtube.replies` (для ответов) и OAuth scope `youtube.force-ssl`; проверь лимиты/квоту API в Google Cloud |
+| YouTube: «дневная квота Data API исчерпана», чат остановился | Так работает `youtube.quotaGuard`: мод перестал тратить единицы и ждёт сброса Google (полночь по тихоокеанскому времени США; время показано в `/twitch youtube info`). Уменьшить расход: `viewersIntervalSeconds` больше, `trackViewers: false`, не держать мод запущенным без эфира. Продолжить сейчас — поднять `youtube.quotaBudget` (0 — только лимит Google 10 000) и сохранить настройки либо `/twitch youtube connect`. Квота считается на **проект** Google Cloud: один Client ID на один запущенный мод |
+| YouTube: чат работает, но сообщения приходят пачками и редко | После ошибок сети/API мод удваивает паузу (2 → 4 → … → 60 с), а на `429` ждёт `Retry-After` от Google. Строка «следующая попытка через N с» в `/twitch youtube info` и `lastError` покажут причину; после успешного запроса интервал возвращается к `pollingIntervalMillis` |
+| YouTube: `{youtube_viewers}` пустой | `trackViewers: false`, эфир ещё не найден или `videos.list` не вернул `concurrentViewers` (трансляция не в статусе live). Проверь `/twitch youtube info` — строка «зрители» и «ошибка» |
+| YouTube: `go live` пишет «поток не активен» | Трансляция не привязана к идущему видеопотоку: запусти стрим в OBS/Studio и дождись, пока YouTube примет сигнал, затем повтори `/twitch youtube go live`. Для `go testing` в Studio должен быть включён мониторинг потока |
+| YouTube: `ban`/`delete` отвечает «подходит нескольким зрителям» или «зритель не найден» | Мод берёт `channelId` из реестра участников текущего чата (300 последних, запись живёт 6 часов). Передай точный `channelId` (`UC…`) вместо ника; до начала опроса чата реестр пуст. Забанить владельца или модератора YouTube не разрешает (`liveChatBanInsertionNotAllowed`) |
 | `Конфиг не прочитан` | синтаксическая ошибка JSON (лишняя запятая, кавычки). Открой `twitchcraft.json.broken-…`, исправь, верни имя, `/twitch reload`. Онлайн-проверка: jsonlint.com |
 | Экран настроек не открывается из Mod Menu | Mod Menu не для 26.3 или не установлен; `/twitch config` работает без него |
 | Игра крашнулась | найди `crash-reports/crash-<дата>.txt`, строки с `twitchcraft` — пришли их разработчику вместе с `logs/latest.log` |
@@ -1929,7 +2023,9 @@ delay 40                                                      # 2 секунды
 
 **YouTube Live**: модуль включён, OAuth Client ID пустой (нужно создать Desktop-приложение самому), callback-порт 8640, чат/команды,
 платные сообщения, членства и ответы включены; вход не выполнен, пока не настроен Client ID и не подтверждён OAuth — раздел 8б.
-Токены хранятся отдельно в `config/twitchcraft-youtube.json`.
+Опрос чата — 2000 сообщений за запрос; зрители эфира (`videos.list`) — раз в 60 с; дневной бюджет квоты Data API — 9 000 единиц из 10 000
+с автоостановкой опроса (`quotaGuard`); управление эфиром (`go`, `title`, `ban`, `unban`, `delete`) включено, показ действий модераторов
+YouTube в чате игры (`showModeration`) выключен, тайм-аут по умолчанию — 300 с. Токены хранятся отдельно в `config/twitchcraft-youtube.json`.
 
 **Прочее**: автоподключение; события в чат; очередь 20 / 1 с / 30 в минуту; префикс чата `&5[T]&r `; автоответы про кулдаун и права;
 автоподтверждение и автовозврат наград, цена по умолчанию 500; оверлей слева сверху, 5 событий по 45 с, статистика и цели;
@@ -1937,4 +2033,4 @@ delay 40                                                      # 2 секунды
 
 ---
 
-*TwitchCraft 1.10.0 · Minecraft 26.3 · Fabric · Twitch, VK Video Live и YouTube Live. Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, история версий — `CHANGELOG.md`, отчёты аудитов — `AUDIT.md`.*
+*TwitchCraft 1.11.0 · Minecraft 26.3 · Fabric · Twitch, VK Video Live и YouTube Live. Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, история версий — `CHANGELOG.md`, отчёты аудитов — `AUDIT.md`.*

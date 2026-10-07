@@ -1,7 +1,8 @@
 #!/bin/sh
 # Запуск автотестов (нужны JDK 25 и собранный проект: ./gradlew build).
 # 1) Логические тесты: события, конфиг и миграция, плейсхолдеры, кулдауны, повторы, модули, лут, цели, сборы средств, очередь действий, события игры, таймеры чата, клипы,
-#    донаты, ценник донатов, случайные награды «Пакость»/«Подарок», разбор событий VK Video Live.
+#    донаты, ценник донатов, случайные награды «Пакость»/«Подарок», разбор событий VK Video Live,
+#    учёт квоты YouTube Data API, сообщения модерации, Retry-After и новые настройки YouTube (configVersion 10).
 # 2) Логические тесты аддона «Артефакты» (ArtifactsHarness, 79): редкости, каталог (56 баффов, 13 проклятий, 35 именных артефактов),
 #    рост проклятия и разрушение на 100 %, лимит артефактов, освобождение лимита «выгоревшими» записями,
 #    выдача за битсы/донаты/подписки/рейды/награды/боссов, команды give/эффектов/удаления.
@@ -13,7 +14,11 @@
 # 3) Интеграционные тесты (34) против фейкового Twitch (python3 + pip install websockets): EventSub, Helix, метки и клипы.
 # 4) Интеграционные тесты (58) против фейковых DonationAlerts / DonatePay (OAuth URL/invalid_client, продление токенов Centrifugo, unsub и догонка донатов).
 # 5) Интеграционные тесты (36) против фейкового VK Video Live (OAuth code, DevAPI, Centrifugo v2: вход, события, награды, чат, 401→refresh, обрыв и догонка).
-# 6) Интеграционные тесты YouTube Live: refresh token, пропуск начальной истории, pollingIntervalMillis/nextPageToken, чат-события и очередь отправки.
+# 6) Интеграционные тесты YouTube Live (~40 секунд): refresh token, пропуск начальной истории,
+#    pollingIntervalMillis/nextPageToken/maxResults, сообщения модерации и служебные типы, зрители эфира
+#    (videos.list) и учёт квоты Data API, нарастающая задержка при 5xx и Retry-After при 429,
+#    порог бюджета квоты, очередь отправки, управление трансляцией (transition/update) и модерация
+#    (бан по нику, неоднозначный ник, удаление сообщения, разбан), ближайший upcoming-эфир для управления.
 #
 # Если harness зависнет (на медленных раннерах CI бывает), он не должен тянуть весь прогон:
 # на один harness даётся JAVA_TIMEOUT секунд (по умолчанию 600; 0 — без ограничения).
@@ -89,7 +94,7 @@ run_java -Dtwitchcraft.vkApiUrl=http://127.0.0.1:8085/v1 -Dtwitchcraft.vkAuthUrl
      -cp "out:$CLASSES:$MC:$JARS" VkHarness || { kill $MOCK; exit 1; }
 kill $MOCK
 
-echo "== YoutubeHarness (фейковый YouTube Data API v3 :8087: polling, pageToken, OAuth refresh, send queue) == ($(now))"
+echo "== YoutubeHarness (фейковый YouTube Data API v3 :8087: polling, pageToken, maxResults, квота, backoff, зрители, управление эфиром и модерация) == ($(now))"
 python3 mock_youtube.py > out/mock_youtube.log 2>&1 &
 MOCK=$!
 sleep 1

@@ -301,6 +301,11 @@ public class TwitchCraftClient implements ClientModInitializer {
 		if (streamStatus != null) {
 			vars.putAll(streamStatus.placeholders());
 		}
+		if (youtube != null) {
+			// {youtube_viewers} {youtube_live_time} {youtube_broadcast_url} {youtube_title} {youtube_channel}
+			// {youtube_quota} {youtube_quota_left}
+			vars.putAll(youtube.placeholders());
+		}
 		ModConfig cfg = config();
 		if (cfg != null) {
 			vars.putAll(DonationPresets.placeholders(cfg.donationTiers));

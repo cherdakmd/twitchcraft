@@ -298,6 +298,10 @@ public class EventProcessor {
 		if (mod.streamStatus() != null) {
 			vars.putAll(mod.streamStatus().placeholders()); // {stream_time} {viewers} {live}
 		}
+		if (mod.youtube() != null) {
+			// {youtube_viewers} {youtube_live_time} {youtube_broadcast_url} {youtube_title} {youtube_channel}
+			vars.putAll(mod.youtube().placeholders());
+		}
 
 		// Хуки 2–4: действия аддонов и привязка награды по id. Работают независимо от того, настроено ли
 		// действие в конфиге; кулдаунами и правами аддон управляет сам (условием своего триггера).

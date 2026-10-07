@@ -263,16 +263,41 @@ public final class TwitchCommands {
 								.then(literal("code")
 										.then(argument("url", StringArgumentType.greedyString())
 												.executes(ctx -> run(() -> mod.youtube().finishLoginWithUrl(StringArgumentType.getString(ctx, "url"))))))
-								.then(literal("debug")
-										.then(literal("on").executes(ctx -> youtubeDebug(mod, true)))
-										.then(literal("off").executes(ctx -> youtubeDebug(mod, false))))
-								.then(literal("test")
-										.then(literal("chat")
-												.then(argument("text", StringArgumentType.greedyString())
-														.executes(ctx -> youtubeTest(mod, "chat", StringArgumentType.getString(ctx, "text")))))
-										.then(literal("member").executes(ctx -> youtubeTest(mod, "member", "")))
-										.then(literal("gift").executes(ctx -> youtubeTest(mod, "gift", "")))
-										.then(literal("superchat").executes(ctx -> youtubeTest(mod, "superchat", "")))))
+									.then(literal("debug")
+											.then(literal("on").executes(ctx -> youtubeDebug(mod, true)))
+											.then(literal("off").executes(ctx -> youtubeDebug(mod, false))))
+									.then(literal("info").executes(ctx -> youtubeInfo(mod)))
+									// Управление эфиром: liveBroadcasts.transition (scope youtube.force-ssl уже есть)
+									.then(literal("go")
+											.then(argument("status", StringArgumentType.word())
+													.executes(ctx -> youtubeTransition(mod, StringArgumentType.getString(ctx, "status")))))
+									.then(literal("title")
+											.then(argument("text", StringArgumentType.greedyString())
+													.executes(ctx -> youtubeTitle(mod, StringArgumentType.getString(ctx, "text")))))
+									// Модерация чата: бан/тайм-аут, разбан и удаление сообщения
+									.then(literal("ban")
+											.then(argument("who", StringArgumentType.word())
+													.executes(ctx -> youtubeBan(mod, StringArgumentType.getString(ctx, "who"), -1))
+													.then(argument("seconds", IntegerArgumentType.integer(0))
+															.executes(ctx -> youtubeBan(mod, StringArgumentType.getString(ctx, "who"),
+																	IntegerArgumentType.getInteger(ctx, "seconds"))))))
+									.then(literal("unban")
+											.then(argument("who", StringArgumentType.greedyString())
+													.executes(ctx -> run(() -> mod.youtube().unban(StringArgumentType.getString(ctx, "who"))))))
+									.then(literal("delete")
+											.then(argument("who", StringArgumentType.greedyString())
+													.executes(ctx -> run(() -> mod.youtube().deleteMessage(StringArgumentType.getString(ctx, "who"))))))
+									.then(literal("test")
+											.then(literal("chat")
+													.then(argument("text", StringArgumentType.greedyString())
+															.executes(ctx -> youtubeTest(mod, "chat", StringArgumentType.getString(ctx, "text")))))
+											.then(literal("member").executes(ctx -> youtubeTest(mod, "member", "")))
+											.then(literal("milestone").executes(ctx -> youtubeTest(mod, "milestone", "")))
+											.then(literal("gift").executes(ctx -> youtubeTest(mod, "gift", "")))
+											.then(literal("superchat").executes(ctx -> youtubeTest(mod, "superchat", "")))
+											.then(literal("sticker").executes(ctx -> youtubeTest(mod, "sticker", "")))
+											.then(literal("funding").executes(ctx -> youtubeTest(mod, "funding", "")))
+											.then(literal("ban").executes(ctx -> youtubeTest(mod, "ban", "")))))
 
 							.then(literal("setup")
 								.then(argument("clientId", StringArgumentType.word())
@@ -954,11 +979,46 @@ public final class TwitchCommands {
 				+ "§7, callback: §f" + mod.youtube().redirectUri());
 		Chat.info("§7Флаги: чат " + onOff(youtube.showChat) + "§7, команды " + onOff(youtube.chatCommands)
 				+ "§7, платные сообщения " + onOff(youtube.paidMessages) + "§7, членства " + onOff(youtube.memberships)
-				+ "§7, ответы " + onOff(youtube.replies));
+				+ "§7, ответы " + onOff(youtube.replies) + "§7, управление эфиром " + onOff(youtube.control)
+				+ "§7, модерация в чате " + onOff(youtube.showModeration));
+		Chat.info("§7Квота Data API: §f" + mod.youtube().quota().describe(youtube.quotaBudget)
+				+ (youtube.trackViewers ? "§7, зрители эфира: §f" + (mod.youtube().viewers() >= 0 ? mod.youtube().viewers() : "—") : ""));
 		Chat.info("§7Настройка: включи YouTube Data API v3, создай OAuth Client ID типа Desktop app, затем "
 				+ "§e/twitch youtube client <Client ID>§7 и §e/twitch youtube login");
 		Chat.info("§7OAuth-токены отдельно: §fconfig/twitchcraft-youtube.json§7. Настройки мода: §e/twitch config§7 → YouTube Live");
-		Chat.info("§7Команды: §e/twitch youtube connect|disconnect|say <текст>|logout|test chat|member|gift|superchat");
+		Chat.info("§7Команды: §e/twitch youtube info|connect|disconnect|say <текст>|go live|title <текст>|ban <ник> [сек]|unban <ник>|delete <ник>|logout");
+		Chat.info("§7Тесты: §e/twitch youtube test chat|member|milestone|gift|superchat|sticker|funding|ban");
+		return 1;
+	}
+
+	/** Подробный статус: эфир, зрители, квота, модерация и сбои с нарастающей задержкой. */
+	private static int youtubeInfo(TwitchCraftClient mod) {
+		Chat.info("§6§l=== YouTube Live: подробно ===§r");
+		for (String line : mod.youtube().infoLines()) {
+			Chat.info(line);
+		}
+		return 1;
+	}
+
+	/** Перевод трансляции в live / testing / complete. */
+	private static int youtubeTransition(TwitchCraftClient mod, String status) {
+		mod.youtube().transition(status, true);
+		return 1;
+	}
+
+	private static int youtubeTitle(TwitchCraftClient mod, String title) {
+		mod.youtube().setTitle(title);
+		return 1;
+	}
+
+	/**
+	 * Бан или тайм-аут зрителя.
+	 *
+	 * @param seconds -1 — взять youtube.defaultTimeoutSeconds из настроек
+	 */
+	private static int youtubeBan(TwitchCraftClient mod, String who, int seconds) {
+		int duration = seconds < 0 ? mod.config().youtube.defaultTimeoutSeconds : seconds;
+		mod.youtube().ban(who, duration);
 		return 1;
 	}
 
@@ -987,11 +1047,31 @@ public final class TwitchCommands {
 
 	private static int youtubeTest(TwitchCraftClient mod, String kind, String text) {
 		String user = "YoutubeViewer";
+		if ("ban".equals(kind)) {
+			// Тест разбора модерационного сообщения YouTube (userBannedEvent) без обращения к API
+			String json = "{\"id\":\"mod-1\",\"snippet\":{\"type\":\"userBannedEvent\",\"userBannedEventDetails\":{"
+					+ "\"banType\":\"temporary\",\"banDurationSeconds\":300,"
+					+ "\"bannedUserDetails\":{\"channelId\":\"UC-test\",\"displayName\":\"" + user + "\"}}}}";
+			dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.Moderation moderation =
+					dev.dedworkshop.twitchcraft.youtube.YoutubeEventMapper.moderation(
+							com.google.gson.JsonParser.parseString(json).getAsJsonObject());
+			if (moderation == null) {
+				Chat.error("Не удалось разобрать тестовое событие модерации YouTube.");
+				return 0;
+			}
+			Chat.info("§7[тест] Имитирую модерацию YouTube: §f" + moderation.kind() + "§7 — " + moderation.user()
+					+ (moderation.seconds() > 0 ? " (" + moderation.seconds() + " с)" : " (навсегда)")
+					+ (mod.config().youtube.showModeration ? "" : " §8(в чат игры не попадёт: youtube.showModeration выключен)"));
+			return 1;
+		}
 		TwitchEvent event = switch (kind) {
 			case "chat" -> TwitchEvent.test(TwitchEvent.Type.CHAT, user, 0, text, "", "");
 			case "member" -> TwitchEvent.test(TwitchEvent.Type.SUBSCRIBE, user, 1, "", "", "Участие канала");
+			case "milestone" -> TwitchEvent.test(TwitchEvent.Type.RESUB, user, 12, "Уже год с нами!", "", "Участие канала");
 			case "gift" -> TwitchEvent.test(TwitchEvent.Type.GIFT_SUB, user, 5, "", "", "Участие канала");
 			case "superchat" -> TwitchEvent.donation(TwitchEvent.SOURCE_YOUTUBE_SUPER_CHAT, user, 100, "RUB", "Спасибо за поддержку!", "test", true);
+			case "sticker" -> TwitchEvent.donation(TwitchEvent.SOURCE_YOUTUBE_SUPER_STICKER, user, 50, "RUB", "", "test-sticker", true);
+			case "funding" -> TwitchEvent.donation(TwitchEvent.SOURCE_YOUTUBE_FAN_FUNDING, user, 200, "RUB", "На развитие канала", "test-funding", true);
 			default -> null;
 		};
 		if (event == null) {
@@ -1033,7 +1113,9 @@ public final class TwitchCommands {
 		source.sendFeedback(Component.literal("§e/twitch say <текст>§7 — написать в чат Twitch"));
 		source.sendFeedback(Component.literal("§e/twitch donations§7 — донаты (DonationAlerts / DonatePay): статус и настройка"));
 		source.sendFeedback(Component.literal("§e/twitch vk§7 — VK Video Live: статус, app/login/channel/connect/say/rewards sync/test"));
-		source.sendFeedback(Component.literal("§e/twitch youtube§7 — YouTube Live: client/login/connect/say/logout/debug/test; OAuth Desktop + PKCE"));
+		source.sendFeedback(Component.literal("§e/twitch youtube§7 — YouTube Live: client/login/connect/disconnect/say/info/debug/test; OAuth Desktop + PKCE"));
+		source.sendFeedback(Component.literal("§e/twitch youtube go live|testing|complete§7, §eyoutube title <текст>§7 — управление эфиром; "
+				+ "§eyoutube ban <ник> [сек]§7, §eyoutube unban <ник>§7, §eyoutube delete <ник>§7 — модерация чата"));
 		source.sendFeedback(Component.literal("§e/twitch clip [повод]§7 (F10) / §e/twitch marker [текст]§7 — клип / метка стрима прямо сейчас"));
 		source.sendFeedback(Component.literal("§e/twitch game§7 — события игры → чат: счётчики, §egame test death|advancement|boss|dimension§7, §egame reset"));
 		source.sendFeedback(Component.literal("§e/twitch timers§7 — таймеры чата, §etimers post|on|off <имя>"));

@@ -116,6 +116,59 @@ public final class YoutubeEventMapper {
 		return snippet == null ? "" : str(snippet, "type");
 	}
 
+	/**
+	 * Служебные сообщения live chat, которые мод осознанно не превращает в события:
+	 * они не про деньги и не про чат-команды.
+	 */
+	private static final Set<String> SERVICE_TYPES = Set.of(
+			"giftMembershipReceivedEvent",     // приходит следом за агрегированным membershipGiftingEvent
+			"placeholderMessageEvent",         // служебная заглушка («чат воспроизводится» и т.п.)
+			"viewerEngagementMessageEvent",    // опросы и объявления самого YouTube
+			"pollEvent"                        // активный опрос в чате
+	);
+
+	/** Это известный служебный тип сообщения (не «неизвестный» — в лог попадает иначе). */
+	public static boolean isServiceType(String type) {
+		return type != null && SERVICE_TYPES.contains(type);
+	}
+
+	/** Действие модератора в live chat. */
+	public record Moderation(String kind, String user, int seconds, String detail) {
+	}
+
+	/**
+	 * Сообщения модерации: бан/тайм-аут, пометка спама и удаление сообщения.
+	 * Для остальных типов возвращает {@code null}.
+	 */
+	public static Moderation moderation(JsonObject item) {
+		JsonObject snippet = object(item, "snippet");
+		if (snippet == null) return null;
+		switch (str(snippet, "type")) {
+			case "userBannedEvent" -> {
+				JsonObject details = object(snippet, "userBannedEventDetails");
+				JsonObject banned = object(details, "bannedUserDetails");
+				String user = first(banned, "displayName", "channelId");
+				int seconds = str(details, "banType").equalsIgnoreCase("temporary")
+						? Math.max(1, intValue(details, "banDurationSeconds", 0)) : 0;
+				return new Moderation("ban", user, seconds, str(details, "banType"));
+			}
+			case "markChatItemAsSpamEvent" -> {
+				JsonObject details = object(snippet, "markChatItemAsSpamDetails");
+				String user = first(details, "spammedChannelDisplayName", "spammedChannelId");
+				return new Moderation("spam", user, 0, "");
+			}
+			case "markChatItemsAsDeletedEvent" -> {
+				JsonObject details = object(snippet, "markChatItemsAsDeletedDetails");
+				JsonObject deleted = object(details, "deletedDetails");
+				String user = first(deleted == null ? details : deleted, "displayName", "channelId");
+				return new Moderation("delete", user, 0, "");
+			}
+			default -> {
+				return null;
+			}
+		}
+	}
+
 	private static Set<String> badges(JsonObject author) {
 		Set<String> badges = new LinkedHashSet<>();
 		if (bool(author, "isChatOwner")) badges.add("broadcaster");
