@@ -58,7 +58,7 @@ public class EventLog {
 		}
 		String line = TIME.format(LocalDateTime.now())
 				+ " | " + event.type()
-				+ (event.isVk() ? " | VK" : "")
+				+ (event.isYoutube() ? " | YouTube" : event.isVk() ? " | VK" : "")
 				+ " | " + clean(event.user())
 				+ (event.userLogin() != null && !event.userLogin().isBlank() ? " (" + event.userLogin() + ")" : "")
 				+ " | amount=" + event.amount()

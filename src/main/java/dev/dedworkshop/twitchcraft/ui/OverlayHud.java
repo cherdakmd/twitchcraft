@@ -124,6 +124,10 @@ public class OverlayHud implements HudElement {
 		if (!vkMark.isEmpty()) {
 			status += "  " + vkMark;
 		}
+		String youtubeMark = mod.youtube().overlayMark();
+		if (!youtubeMark.isEmpty()) {
+			status += "  " + youtubeMark;
+		}
 		lines.add(new Line(status, color));
 
 		SessionStats stats = mod.events().stats();

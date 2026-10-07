@@ -50,7 +50,7 @@ public final class Placeholders {
 		vars.put("i", "1");
 		vars.put("loot", "");
 		vars.put("source", "");
-		vars.put("platform", event.isVk() ? "VK Video Live" : event.isGame() ? "Minecraft" : "Twitch");
+		vars.put("platform", event.isYoutube() ? "YouTube Live" : event.isVk() ? "VK Video Live" : event.isGame() ? "Minecraft" : "Twitch");
 		vars.put("currency", "");
 		vars.put("sum", String.valueOf(event.amount()));
 		if (event.type() == TwitchEvent.Type.DONATION) {

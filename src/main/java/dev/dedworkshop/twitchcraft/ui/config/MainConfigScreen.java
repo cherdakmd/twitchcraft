@@ -90,9 +90,11 @@ class MainConfigScreen extends BaseScreen {
 				"Полоса сбора вверху экрана: «Сбор на микрофон: 3 500 / 10 000 ₽». Донаты заполняют её сами"));
 		rows.addChild(Widgets.button("VK Video Live", Widgets.HALF, () -> open(new VkScreen(mod, this)),
 				"Чат, команды, награды за баллы и фолловы с live.vkvideo.ru"));
+		rows.addChild(Widgets.button("YouTube Live", Widgets.HALF, () -> open(new YoutubeScreen(mod, this)),
+				"YouTube Data API v3: OAuth, live chat, команды, Super Chat и членства"));
 
 		rows.addChild(Widgets.button("События игры → чат", Widgets.HALF, () -> open(new GameEventsScreen(mod, this)),
-				"Смерти со счётчиком, достижения, боссы и смена измерения — сообщением в чаты Twitch и VK"));
+				"Смерти со счётчиком, достижения, боссы и смена измерения — сообщением в чаты Twitch, VK и YouTube"));
 		rows.addChild(Widgets.button("Клипы и метки", Widgets.HALF, () -> open(new ClipsScreen(mod, this)),
 				"Автоклип и метка стрима при смерти, донате, боссе; F10 — клип вручную"));
 
@@ -181,9 +183,13 @@ class MainConfigScreen extends BaseScreen {
 			}
 		}
 		String donations = mod.donations().overlayMark();
+		String vk = mod.vk().overlayMark();
+		String youtube = mod.youtube().overlayMark();
 		return Component.literal("EventSub: ").withStyle(ChatFormatting.GRAY)
 				.append(Component.literal(status))
 				.append(Component.literal((donations.isEmpty() ? "" : "  ·  донаты: " + donations)
+						+ (vk.isEmpty() ? "" : "  ·  " + vk)
+						+ (youtube.isEmpty() ? "" : "  ·  " + youtube)
 						+ "  ·  модулей включено: " + enabled + "/" + Module.values().length).withStyle(ChatFormatting.GRAY));
 	}
 

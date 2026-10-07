@@ -1,8 +1,8 @@
-# TwitchCraft — интеграция Twitch и VK Video Live с Minecraft (Fabric 26.3)
+# TwitchCraft — интеграция Twitch, VK Video Live и YouTube Live с Minecraft (Fabric 26.3)
 
 Мод для стримеров: **баллы канала, подписки, битсы, фолловы, рейды, чат-команды** на Twitch,
-**чат, награды за баллы и фолловы на VK Video Live** и **донаты через DonationAlerts / DonatePay**
-запускают события прямо в игре — спавн мобов, молнии, эффекты, подарки, заголовки, звуки и тосты.
+**чат, награды за баллы и фолловы** на VK Video Live, **чат, Super Chat/стикеры и платные членства** на YouTube Live
+и **донаты через DonationAlerts / DonatePay** запускают события прямо в игре — спавн мобов, эффекты, подарки, заголовки и звуки.
 
 > **Подробный гайд и мануал по всем функциям** (пошаговая настройка, каждое поле конфига, все команды, диагностика, FAQ) — в файле [`MANUAL.md`](MANUAL.md). Ниже — короткая справка.
 
@@ -11,18 +11,19 @@
 - Minecraft **26.3** (Java Edition), **Fabric Loader 0.19.5+**, **Fabric API 0.161.0+26.3**
 - Клиентский мод для одиночной игры (на серверах тоже работает, если у тебя есть OP)
 - Никаких ключей/секретов в коде: авторизация через официальный **Device Code Flow** Twitch
-- Все действия настраиваются **в игре** (экран настроек через Mod Menu или `/twitch config`) или в одном JSON-файле
+- Настройки действий меняются **в игре** (экран через Mod Menu или `/twitch config`) или в основном JSON; OAuth-токены платформ хранятся отдельно
 - **Подарки** за фоллов, подписку и рейд из таблиц лута, **цели** («каждые 10 фолловеров — награда») с прогрессом в оверлее
 - **Донаты**: DonationAlerts (в реальном времени) и DonatePay (опрос раз в 20 с) — 10 готовых эффектов по сумме, свои пороги для каждого сервиса, цели по сумме донатов
 - **Сборы средств** — полоса вверху экрана **в стиле боссбара** («Сбор на микрофон: 3 500 / 10 000 ₽»), которую заполняют донаты, битсы, подписки и баллы; эффект при закрытии
 - **VK Video Live** (live.vkvideo.ru): чат, чат-команды, награды за баллы канала и фолловы работают через те же действия, что и Twitch — одновременно с ним
+- **YouTube Live**: OAuth Desktop + PKCE, чат и команды, платные членства/подарки, Super Chat и Super Stickers через YouTube Data API v3
 - **Две награды за баллы по умолчанию** — «Пакость» (случайное ☠ событие из ценника) и «Подарок» (случайное ★), по 250 баллов
 - **События игры → чат**: смерти со счётчиком («смерть №7 за стрим»), **все** достижения (включая модовые), победы над боссами
-  и смена измерения объявляются в чаты Twitch и VK; команды зрителей `!смерти` и `!время`
+  и смена измерения объявляются в чаты Twitch, VK и YouTube; команды зрителей `!смерти` и `!время`
 - **Клипы и метки стрима Twitch** автоматически при смерти, донате от 50 ₽ и победе над боссом; **F10** / `/twitch clip` — вручную
 - **Таймеры чата**: напоминание о ценнике раз в 15 минут (и любые свои), но только когда чат живой
-- **20 модулей** — любую функцию можно выключить одной кнопкой
-- Чат Twitch и VK прямо в игре, ответы зрителям, оверлей, очередь, кулдауны, статистика, журнал
+- **21 модуль** — любую функцию можно выключить одной кнопкой
+- Чаты Twitch, VK и YouTube прямо в игре, ответы зрителям, оверлей, очередь, кулдауны, статистика, журнал
 
 ---
 
@@ -34,7 +35,7 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - **[`twitchcraft-1.9.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)** — готовый JAR из GitHub Releases
+   - **[`twitchcraft-1.10.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)** — готовый JAR из GitHub Releases
      (там же лежит необязательный `artifact-addon-1.0.0.jar` — аддон «Артефакты»); все опубликованные версии —
      на странице **[Releases](https://github.com/cherdakmd/twitchcraft/releases)**. В папке `release/` репозитория
      лежат jar версий 1.7.0 и 1.7.1 и `ЦЕННИК.md` — текст для панели под стримом.
@@ -46,7 +47,7 @@
 > Папка `.minecraft` в Windows: `%APPDATA%\.minecraft`, в macOS: `~/Library/Application Support/minecraft`, в Linux: `~/.minecraft`.
 
 > **Обновляешься с 1.x?** Просто замени jar. Конфиг дополнится новыми разделами сам
-> (`modules`, `goals`, таблицы лута, `donations`, `fundraisers` — сбор средств, `vk` — VK Video Live, `gameEvents` / `timers` / `clips` — 1.7.0), твои награды и команды останутся.
+> (`modules`, `goals`, `donations`, `vk`, `youtube` — YouTube Live, `gameEvents` / `timers` / `clips`), твои награды и команды останутся.
 > **После обновления на 1.7.0 сделай `/twitch logout` → `/twitch login`** — токен должен получить права на клипы и метки стрима
 > (`clips:edit`, `channel:manage:broadcast`). Порт входа VK по умолчанию исправлен на `8638` (как в инструкции; в 1.6.0 в коде стоял `8632`):
 > если ты создавал приложение VK с `http://localhost:8632/vk`, поменяй Redirect URI в карточке приложения или верни `vk.callbackPort: 8632`.
@@ -154,7 +155,7 @@ Twitch требует, чтобы у каждой программы, котор
 | Экран | Что там |
 |---|---|
 | **Главный** | Аккаунт и состояние подключения, код авторизации, кнопки *Войти / Выйти*, *Подключиться / Отключиться*, *Перечитать конфиг*, *Создать награды на Twitch* |
-| **Модули** | 16 переключателей (см. раздел 5б). Применяются сразу; если изменился набор событий — мод сам переподключится к Twitch |
+| **Модули** | 21 переключатель (см. раздел 5б). Применяются сразу; платформенные интеграции и подписки синхронизируются отдельно |
 | **Общие настройки** | Client ID, автоподключение, чат, очередь и лимиты, запрещённые команды, награды (API), оверлей, цели. Кнопка *Сохранить* |
 | **События Twitch** | Фоллов / подписка / ресаб / подарки / рейд / битсы: *Изменить* (редактор действия), *Тест*, *Пороги* (список «от N»), у подписки / ресаба / подарков — ещё *Уровни* (свои действия для 1/2/3/Prime) |
 | **Награды за баллы** | Список наград: добавить / изменить / тест / удалить. В редакторе — стоимость, описание, ввод текста, цвет |
@@ -195,7 +196,8 @@ Twitch требует, чтобы у каждой программы, котор
 | `donationAlerts` | DonationAlerts | донаты DonationAlerts в реальном времени (см. раздел 5в) |
 | `donatePay` | DonatePay | донаты DonatePay (опрос API раз в 20 с) |
 | `vkVideoLive` | VK Video Live | чат, команды, награды за баллы и фолловы с live.vkvideo.ru (раздел 5г) |
-| `gameEvents` | События игры → чат | смерти, достижения, боссы, смена измерения → сообщение в чаты Twitch и VK; `!смерти`, `!время` (раздел 5д) |
+| `youtubeLive` | YouTube Live | чат, команды, платные членства, Super Chat и Super Stickers (раздел 5ё) |
+| `gameEvents` | События игры → чат | смерти, достижения, боссы, смена измерения → сообщение в чаты Twitch, VK и YouTube; `!смерти`, `!время` (раздел 5д) |
 | `chatTimers` | Таймеры чата | периодические сообщения бота (ценник раз в 15 мин, соцсети…), когда чат живой (раздел 5д) |
 | `clips` | Клипы и метки Twitch | клип и метка стрима при смерти / донате от N / боссе, F10 и `/twitch clip` (раздел 5д) |
 
@@ -367,7 +369,7 @@ Twitch требует, чтобы у каждой программы, котор
 
 ## 5д. События игры → чат, клипы и метки, таймеры чата
 
-**События игры → чат** (модуль `gameEvents`, экран *События игры → чат*). Мод сам замечает, что произошло в игре, и пишет об этом зрителям в чат Twitch и VK:
+**События игры → чат** (модуль `gameEvents`, экран *События игры → чат*). Мод сам замечает, что произошло в игре, и пишет об этом зрителям в чаты Twitch, VK и YouTube:
 
 | Событие | Сообщение по умолчанию | Переменные |
 |---|---|---|
@@ -385,7 +387,7 @@ Twitch требует, чтобы у каждой программы, котор
 
 **Клипы и метки стрима** (модуль `clips`, экран *Клипы и метки*). При смерти, донате от `donationFrom` (50 ₽) и победе над боссом мод ставит
 **метку стрима** (точка на таймлайне записи — потом легко найти момент в редакторе Twitch) и делает **клип** (последние ~30 секунд эфира).
-Когда Twitch обработает клип (~15 с), ссылка появляется в чате игры (кликабельно, рядом ссылка «обрезать») и уходит зрителям в чаты Twitch/VK
+Когда Twitch обработает клип (~15 с), ссылка появляется в чате игры (кликабельно, рядом ссылка «обрезать») и уходит зрителям в выбранные чаты Twitch/VK/YouTube
 (`clipChatText`, по умолчанию `🎬 Клип: {clip_url}`). Вручную: **F10**, `/twitch clip [повод]`, `/twitch marker [текст]`. Если стрим не идёт,
 Twitch отвечает 404 — мод тихо пропускает (раз в 5 минут напомнит в чат игры). Кулдауны: клип 60 с, метка 10 с. Нужны права `clips:edit`
 и `channel:manage:broadcast` — после обновления на 1.7.0 сделай `/twitch logout` и `/twitch login` заново, иначе кнопки скажут «нет права».
@@ -397,15 +399,15 @@ Twitch отвечает 404 — мод тихо пропускает (раз в 
 Команды: `/twitch timers`, `/twitch timers post <имя>` — написать сейчас, `/twitch timers on|off <имя>`.
 
 Раздел конфига: `gameEvents` (действия по ключам `death`, `advancement`, `advancementGoal`, `advancementChallenge`, `boss`, `dimension`),
-`gameEventsSettings` (`toTwitch`, `toVk`, `otherPlayers`, `quietSecondsAfterJoin`, `persistStats`), `timers` (список: `name`, `enabled`,
-`intervalMinutes`, `minChatMessages`, `text`, `twitch`, `vk`), `clips` (`markerOnDeath`, `clipOnDeath`, `donationFrom`, `markerOnDonation`,
-`clipOnDonation`, `markerOnBoss`, `clipOnBoss`, `postClipToTwitch`, `postClipToVk`, `clipChatText`, `clipCooldownSeconds`, `markerCooldownSeconds`).
+`gameEventsSettings` (`toTwitch`, `toVk`, `toYoutube`, `otherPlayers`, `quietSecondsAfterJoin`, `persistStats`), `timers` (список: `name`, `enabled`,
+`intervalMinutes`, `minChatMessages`, `text`, `twitch`, `vk`, `youtube`), `clips` (`markerOnDeath`, `clipOnDeath`, `donationFrom`, `markerOnDonation`,
+`clipOnDonation`, `markerOnBoss`, `clipOnBoss`, `postClipToTwitch`, `postClipToVk`, `postClipToYoutube`, `clipChatText`, `clipCooldownSeconds`, `markerCooldownSeconds`).
 
 ---
 
 ## 5е. Аддоны TwitchCraft — отдельные мод-файлы (например «Артефакты»)
 
-TwitchCraft 1.9.0 принимает **аддоны**: это отдельные моды (свой jar), которые ставятся в `mods` рядом с TwitchCraft и объявляют
+TwitchCraft 1.10.0 принимает **аддоны**: это отдельные моды (свой jar), которые ставятся в `mods` рядом с TwitchCraft и объявляют
 точку входа Fabric `twitchcraft-addon`. Аддон — необязательная часть: без него мод работает как обычно, а `/twitch addons` покажет
 «аддоны не подключены». Ошибка аддона не роняет игру: каждый вызов обёрнут в try/catch.
 
@@ -482,6 +484,45 @@ Minecraft, которые TwitchCraft выполняет с правами оп�
 появление и победа публикуются как события `bossSpawn` и `bossDefeat` — их видно в `/twitch event` и можно настроить
 на них свои действия в «События игры» (наравне с «Босс повержен» для ванильных боссов).
 
+## 5ё. YouTube Live
+
+TwitchCraft подключается к **YouTube Data API v3** по OAuth Desktop + PKCE и читает чат активной трансляции через REST polling.
+Интеграция отдельная от Twitch: у неё есть собственный модуль `youtubeLive`, отдельные флаги и собственный callback.
+
+### Настройка
+
+1. В Google Cloud Console создай проект, включи **YouTube Data API v3**, настрой OAuth consent screen и создай OAuth Client ID типа **Desktop app**.
+   Client Secret не нужен. Для OAuth Desktop используется loopback callback вида `http://localhost:8640` (порт можно изменить в настройках).
+2. Открой `/twitch config` → **YouTube Live** (или выполни `/twitch youtube client <Client ID>`), сохрани Client ID и включи модуль `youtubeLive`.
+3. Выполни `/twitch youtube login` и подтверди запрошенные права в браузере. Вход использует Authorization Code + PKCE и случайный `state`.
+   После callback мод проверит канал, затем найдёт активную трансляцию. Автоподключение выполняется при входе в мир.
+4. Статус и команды: `/twitch youtube`, `/twitch youtube connect`, `/twitch youtube disconnect`, `/twitch youtube say <текст>`.
+   Проверка действий: `/twitch youtube test chat !команда`, `member`, `gift`, `superchat`.
+
+OAuth access/refresh tokens и профиль канала хранятся отдельно в `config/twitchcraft-youtube.json`; Client ID находится в основном
+`config/twitchcraft.json`. Файл с токенами — секрет, не отправляй его и не показывай на стриме. Выход: `/twitch youtube logout`.
+
+### Что приходит и как обрабатывается
+
+- Обычный чат и команды используют общий список `chatCommands`, но включаются раздельными флагами YouTube: `showChat` и `chatCommands`.
+  Префикс Minecraft-чата задаётся `chatPrefix`; сообщения собственного канала/бота фильтруются.
+- Новый платный участник → общее событие подписки; milestone → продление; aggregate membership gifting → подарочные участи.
+  Уведомления о получении каждого отдельного подарка пропускаются, чтобы не задвоить групповой подарок.
+- Super Chat, Super Sticker и legacy Fan Funding идут как `DONATION` и используют общую таблицу `donationTiers`.
+  Сумма передаётся в валюте, которую указал YouTube; автоматической конвертации валют нет.
+- YouTube **не** выдаёт Twitch-фолловы, рейды, битсы или Channel Points — эти события не имитируются.
+- Автоответы управляются отдельным `replies`; отправка требует scope `youtube.force-ssl`, активного live chat и включённого `youtubeLive`.
+  Сообщения бота стоят в очереди и отправляются с интервалом, чтобы снизить риск лимита YouTube.
+
+Чат читается через `liveChatMessages.list`: после каждого запроса мод ждёт `pollingIntervalMillis` и продолжает с `nextPageToken`.
+Первый ответ намеренно пропускается, поэтому история до подключения и старые `!команды` не воспроизводятся. Если активного эфира
+или чата нет, мод ищет его повторно. Настройка `debugEvents` пишет неизвестные типы сообщений и polling в `logs/latest.log`.
+
+Игровые объявления (`gameEventsSettings.toYoutube`), таймеры (`timers[].youtube`) и ссылки на клипы Twitch
+(`clips.postClipToYoutube`) маршрутизируются в активный YouTube-чат. Само создание клипов и меток остаётся функцией Twitch.
+
+---
+
 ## 6. Настройка действий — файл `config/twitchcraft.json`
 
 Файл создаётся автоматически при первом запуске (`.minecraft/config/twitchcraft.json`)
@@ -507,8 +548,9 @@ Minecraft, которые TwitchCraft выполняет с правами оп�
 
   "modules": { "follows": true, "subscriptions": true, "bits": true, "raids": true, "channelPoints": true,
                "twitchChat": true, "chatCommands": true, "chatReplies": true, "rewardManagement": true,
-               "goals": true, "overlay": true, "hotkeys": true, "eventLog": true,
-               "donationAlerts": true, "donatePay": true },   // см. раздел 5б
+               "goals": true, "fundraisers": true, "overlay": true, "hotkeys": true, "eventLog": true,
+               "donationAlerts": true, "donatePay": true, "vkVideoLive": true, "youtubeLive": true,
+               "gameEvents": true, "chatTimers": true, "clips": true },   // 21 модуль, см. раздел 5б
 
   "twitchChat":     { "showBadges": true, "hideCommands": false, "prefix": "&5[T]&r ", "showSharedChat": true, "sharedChatCommands": false },
   "chatReplies":    { "cooldownReply": "@{user}, подожди ещё {seconds} с",
@@ -519,12 +561,14 @@ Minecraft, которые TwitchCraft выполняет с правами оп�
   "donations":      { "currency": "RUB", "minAmount": 1, "donationAlertsClientId": "", "donatePayPollSeconds": 20,
                       "callbackPort": 8631, "showMessage": true },   // см. раздел 5в
   "vk":             { "channelUrl": "https://live.vkvideo.ru/dedworkshop", "callbackPort": 8638, ... },   // см. раздел 5г
+  "youtube":        { "clientId": "", "callbackPort": 8640, "showChat": true, "chatCommands": true,
+                      "paidMessages": true, "memberships": true, "replies": true },   // токены — в отдельном файле, см. раздел 5ё
   "gameEvents":     { "death": {...}, "advancement": {...}, "advancementGoal": {...}, "advancementChallenge": {...}, "boss": {...}, "dimension": {...} },
-  "gameEventsSettings": { "toTwitch": true, "toVk": true, "otherPlayers": false, "quietSecondsAfterJoin": 5, "persistStats": true },   // см. раздел 5д
+  "gameEventsSettings": { "toTwitch": true, "toVk": true, "toYoutube": true, "otherPlayers": false, "quietSecondsAfterJoin": 5, "persistStats": true },   // см. раздел 5д
   "addonTriggers":  { "v2": {...}, "v3": {...} },   // действия на кастомные триггеры аддонов: ключ — слот v0…v3 (см. раздел 5е)
-  "timers":         [ { "name": "ценник", "enabled": true, "intervalMinutes": 15, "minChatMessages": 3, "text": "...", "twitch": true, "vk": true } ],
+  "timers":         [ { "name": "ценник", "enabled": true, "intervalMinutes": 15, "minChatMessages": 3, "text": "...", "twitch": true, "vk": true, "youtube": true } ],
   "clips":          { "markerOnDeath": true, "clipOnDeath": true, "donationFrom": 50, "markerOnDonation": true, "clipOnDonation": true,
-                      "markerOnBoss": true, "clipOnBoss": true, "postClipToTwitch": true, "postClipToVk": true, "clipChatText": "🎬 Клип: {clip_url}",
+                      "markerOnBoss": true, "clipOnBoss": true, "postClipToTwitch": true, "postClipToVk": true, "postClipToYoutube": true, "clipChatText": "🎬 Клип: {clip_url}",
                       "clipCooldownSeconds": 60, "markerCooldownSeconds": 10 },
 
   "goals": [                         // накопительные цели (см. ниже)
@@ -604,7 +648,7 @@ Minecraft, которые TwitchCraft выполняет с правами оп�
 | `repeat`, `repeatPer`, `maxRepeat`, `repeatDelay` | Повторы: `"repeat": "{amount}", "repeatPer": 100` — один повтор на каждые 100 битс, не больше `maxRepeat`. В командах доступны `{i}` (номер повтора) и `{repeat}` (всего) |
 | `chance`, `failMessage` | Шанс срабатывания в процентах и сообщение при неудаче (лотерея) |
 | `cooldown`, `userCooldown` | Кулдаун в секундах: общий и на одного зрителя. На кулдауне награда **возвращает баллы** (если создана модом) и отвечает в чат |
-| `reply` | Ответ в чат Twitch от твоего имени |
+| `reply` | Ответ от твоего имени в чат площадки события (Twitch, VK или YouTube); для игровых событий — в выбранные чаты |
 | `permission`, `aliases` | Только для чат-команд: `everyone`, `subscriber`, `vip`, `moderator`, `broadcaster`; другие имена команды |
 | `cost`, `prompt`, `input`, `color` | Только для наград: параметры для `/twitch rewards sync` (цена, описание, требовать ввод текста, цвет `#RRGGBB`) |
 | `loot` | **Таблица лута**: список записей `{ "name", "weight", ...любые поля действия... }`. При срабатывании выпадает **одна** запись (шанс = `weight` / сумма весов), её `name` доступен как `{loot}` уже в `message`/`title` основного действия, а её команды и эффекты выполняются после основных. Запись с `enabled: false` или `weight: 0` не выпадает |
@@ -618,11 +662,12 @@ Minecraft, которые TwitchCraft выполняет с правами оп�
 | Плейсхолдер | Значение |
 |---|---|
 | `{user}` / `{user_login}` | имя / логин зрителя |
+| `{platform}` | площадка события: Twitch, VK Video Live или YouTube Live; для событий игры — Minecraft |
 | `{amount}` | битсы / месяцы подписки / количество подарков / зрители рейда / стоимость награды / сумма доната (число) |
-| `{sum}`, `{currency}`, `{source}` | донаты: сумма с символом валюты («500 ₽»), код валюты, сервис (DonationAlerts / DonatePay) |
+| `{sum}`, `{currency}`, `{source}` | донаты: сумма с символом валюты, код валюты, источник (DonationAlerts / DonatePay / YouTube Super Chat, Super Sticker или Fan Funding) |
 | `{message}` | текст зрителя (к битсам, ресабу, ввод к награде, аргументы чат-команды) |
 | `{reward}` | название награды |
-| `{tier}` | уровень подписки: 1, 2, 3 или Prime |
+| `{tier}` | уровень подписки Twitch (1/2/3/Prime) или название уровня членства YouTube |
 | `{command}` | имя чат-команды |
 | `{player}` | твой ник в Minecraft |
 | `{i}`, `{repeat}` | номер текущего повтора и общее число повторов |
@@ -791,6 +836,7 @@ title @s actionbar "Привет, {user}!"                  текст над х
 | `/twitch donations ...` | Донаты: статус, `prices` (ценник), `preset` (вернуть ценник по умолчанию), `da client/login/cancel/logout`, `dp key/logout`, `connect`/`disconnect` (раздел 5в) |
 | `/twitch say <текст>` | Написать в чат Twitch |
 | `/twitch vk` | VK Video Live: статус; `app <id> <секрет>`, `login`, `code <код>`, `cancel`, `logout`, `channel <ссылка>`, `connect`/`disconnect`, `say <текст>`, `rewards sync`, `debug on\|off`, `test chat <текст>\|follow\|reward <название>` (раздел 5г) |
+| `/twitch youtube` | YouTube Live: `client <id>`, `login`, `cancel`, `code <URL>`, `logout`, `connect`/`disconnect`, `say`, `debug`, `test chat/member/gift/superchat` (раздел 5ё) |
 | `/twitch test ...` | Имитация событий: `follow`, `sub`, `resub [мес]`, `gift [n]`, `cheer [битсы]`, `raid [зрители]`, `reward <название>`, `chat <текст>`, `goal <цель>`, `fund <имя>`, `donation [сумма] [текст]` |
 | `/twitch clip [повод]` / `/twitch marker [текст]` | Клип стрима Twitch (F10) / метка стрима прямо сейчас (раздел 5д) |
 | `/twitch game` | События игры → чат: счётчики смертей/достижений/боссов, состояние стрима, права; `game test death\|advancement\|goal\|challenge\|boss\|dimension`, `game reset [all]` |
@@ -812,7 +858,7 @@ gradlew.bat build
 ./gradlew build
 ```
 
-Готовый мод появится в `build/libs/twitchcraft-1.9.0.jar` (и `artifact-addon-1.0.0.jar`, если собран аддон «Артефакты»).
+Готовый мод появится в `build/libs/twitchcraft-1.10.0.jar` (и `artifact-addon-1.0.0.jar`, если собран аддон «Артефакты»).
 Первая сборка качает Minecraft и зависимости (~600 МБ) — это нормально.
 
 **IntelliJ IDEA** (Community бесплатна): *File → Open* → папка проекта → дождаться синхронизации Gradle.
@@ -870,11 +916,15 @@ twitchcraft/
     ├── vk/VkPubSub.java                — WebSocket Centrifugo v2 (connect / subscribe / refresh / push / ping)
     ├── vk/VkEvents.java                — разбор событий VK (чат, запросы наград, журнал, статус эфира) в TwitchEvent (чистые функции, покрыты тестами)
     ├── vk/VkStore.java                 — файл twitchcraft-vk.json (секрет приложения, токены, профиль)
+    ├── youtube/YoutubeLive.java         — YouTube Live: OAuth PKCE, поиск эфира, polling чата и очередь отправки
+    ├── youtube/YoutubeApi.java          — YouTube Data API v3 + Google OAuth refresh/revoke
+    ├── youtube/YoutubeEventMapper.java  — чат / Super Chat / членства → TwitchEvent (чистые функции)
+    ├── youtube/YoutubeStore.java        — секретный файл twitchcraft-youtube.json (токены и профиль)
     ├── module/Module.java              — список модулей (id, название, право Twitch, влияние на подписки)
     ├── ui/OverlayHud.java              — оверлей (Fabric HUD API)
     ├── ui/FundraiserBar.java           — полоса сбора средств в стиле боссбара (спрайты boss_bar/*, Fabric HUD API)
     ├── ui/Hotkeys.java                 — F7 / F8 / F9 / F10
-    ├── ui/TwitchChatRenderer.java      — вывод чата Twitch в чат игры
+    ├── ui/TwitchChatRenderer.java      — вывод чатов Twitch / VK / YouTube в чат игры
     ├── ui/config/                      — экраны настроек (только ванильные виджеты Minecraft)
     │   ├── ModMenuIntegration.java     —   точка входа Mod Menu (грузится только если Mod Menu установлен)
     │   ├── ConfigScreens.java          —   открытие экрана из Mod Menu и из /twitch config
@@ -885,6 +935,7 @@ twitchcraft/
     │   ├── EventsScreen.java           —   фоллов / саб / ресаб / подарки / рейд / битсы / донаты + пороги
     │   ├── DonationsScreen.java        —   донаты: вход DonationAlerts, ключ DonatePay, настройки, таблицы эффектов
     │   ├── VkScreen.java               —   VK Video Live: приложение, вход, канал, подключение, флаги
+    │   ├── YoutubeScreen.java          —   YouTube Live: OAuth Desktop, loopback, чат/события и тесты
     │   ├── ActionListScreen.java       —   списки наград, чат-команд, порогов
     │   ├── ActionEditScreen.java       —   редактор действия (все поля + таблица лута + Тест)
     │   ├── LootListScreen.java         —   таблица лута
@@ -896,10 +947,10 @@ twitchcraft/
     └── util/Chat.java                  — вывод в чат из любого потока
 ```
 
-Поток данных: **Twitch → EventSubClient / VK Video Live → VkPubSub (сетевые потоки) → TwitchEvent (с полем `platform`) →
-основной поток игры → EventProcessor (очередь/кулдауны) → ActionRunner → команды на встроенном сервере.**
+Поток данных: **Twitch → EventSubClient, VK Video Live → VkPubSub, YouTube Live → HTTP polling (`YoutubeLive`) →
+TwitchEvent (с полем `platform`) → основной поток игры → EventProcessor (очередь/кулдауны) → ActionRunner → команды на встроенном сервере.**
 События самой игры идут тем же путём: **GameEvents → TwitchEvent типа GAME → EventProcessor (без очереди и лимитов) → ActionRunner →
-`reply` в чаты Twitch и VK** (+ ClipManager для клипов и меток).
+`reply` в выбранные чаты Twitch, VK и YouTube** (+ ClipManager для клипов и меток).
 
 Что изменилось в Fabric начиная с 26.1 (если будешь читать старые туториалы):
 - Minecraft больше не обфусцирован — маппинги (Yarn/Mojmap) не нужны, плагин называется `net.fabricmc.fabric-loom`
@@ -907,14 +958,11 @@ twitchcraft/
 - Нужна Java 25; `ResourceLocation` переименован в `Identifier`; клиентские команды — класс `ClientCommands`;
   клавиши — `KeyMappingHelper`, HUD — `HudElementRegistry`
 
-В папке `dev-tests/` лежат автотесты (`run_tests.sh`): 345 проверок логики (разбор событий, конфиг и миграция,
-плейсхолдеры, кулдауны, повторы, модули, таблицы лута, цели, очередь выполнения действий, разбор донатов, курсор DonatePay, callback-сервер,
-случайные награды «Пакость»/«Подарок», разбор событий VK, счётчики событий игры, разбор достижений и причин смерти, таймеры чата на фальшивых часах,
-решения о клипах/метках), 34 интеграционные проверки против «фейкового Twitch» (`mock_twitch.py`): подписки, чат,
-переподключение, watchdog, подтверждение/возврат наград, состояние стрима, метки и клипы (включая 404 вне эфира и ожидание готовности клипа), 58 проверок против «фейковых DonationAlerts и DonatePay» (`mock_donations.py`): OAuth URL/invalid_client, вход через браузер,
-Centrifugo, дедупликация, переподключение, отзыв токена, проверка ключа, посев курсора, ожидание платежей, модули, и 36 проверок против «фейкового VK Video Live»
-(`mock_vk.py`): вход по коду через localhost, канал и токены WebSocket, события чата / наград / фолловов с дедупликацией, подтверждение и отклонение запросов,
-отправка в чат с повтором, продление токенов (WebSocket и 401 → refresh), обрыв соединения с догонкой запросов, создание наград, выход.
+В папке `dev-tests/` лежат автотесты (`run_tests.sh`): LogicTest покрывает события, конфиг и миграции, плейсхолдеры, кулдауны,
+очереди, модули, цели, донаты, VK/YouTube-маппинг, события игры, таймеры и клипы. Отдельные harness-тесты проверяют аддоны,
+боссов, Twitch EventSub/Helix (34 проверки), DonationAlerts/DonatePay (58), VK Video Live (36) и YouTube Live
+(refresh token, начальный пропуск истории, `pollingIntervalMillis`, `nextPageToken`, активный live chat и очередь отправки).
+Платформенные интеграции тестируются локальными HTTP/WebSocket-заглушками; реальные OAuth-входы и API-ключи не требуются.
 
 Mod Menu подключён как `compileOnly`-зависимость: мод компилируется с его API, но в игре работает и без него —
 класс `ModMenuIntegration` загружается только когда Mod Menu установлен (точка входа `modmenu` в `fabric.mod.json`).
@@ -935,7 +983,7 @@ Mod Menu подключён как `compileOnly`-зависимость: мод 
 | Команды не выполняются на сервере | На чужом сервере команды уходят от твоего имени — нужен OP. В одиночке работает всегда |
 | `Команда /xxx заблокирована` | Команда есть в `blockedCommands` — это защита; убери из списка, если уверен. Проверяется и команда после `run` внутри `execute … run …` |
 | В логе «Ошибка чтения конфига … (копия файла: twitchcraft.json.broken-…)» | В JSON опечатка (мод подскажет строку). Твои правки лежат в копии `.broken-<дата>` рядом — исправь и верни содержимое в `twitchcraft.json`, потом `/twitch reload` |
-| `Связь с Twitch потеряна` | Мод переподключится сам (1, 2, 4… до 60 с). Если постоянно — проверь VPN/фаервол (нужны `eventsub.wss.twitch.tv`, `api.twitch.tv`, `id.twitch.tv`; для донатов — `www.donationalerts.com`, `centrifugo.donationalerts.com`, `donatepay.ru`) |
+| `Связь с Twitch потеряна` | Мод переподключится сам (1, 2, 4… до 60 с). Если постоянно — проверь VPN/фаервол (нужны `eventsub.wss.twitch.tv`, `api.twitch.tv`, `id.twitch.tv`; для донатов — `www.donationalerts.com`, `centrifugo.donationalerts.com`, `donatepay.ru`; YouTube — `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`) |
 | В Mod Menu нет кнопки «Настроить» | Проверь, что стоит Mod Menu **21.x для 26.3**. Без Mod Menu используй `/twitch config` |
 | Цели не растут | Модуль `goals` включён? (`/twitch modules`). Тестовые события и повторы F9 в цели не засчитываются — проверяй через `/twitch goals add <цель> 1` |
 | Подарок не выдаётся | В таблице лута все записи выключены или с весом 0; смотри `/twitch history` и `showCommandOutput: true` для ответа команды `give` |
@@ -946,15 +994,18 @@ Mod Menu подключён как `compileOnly`-зависимость: мод 
 | DonationAlerts: «токен недействителен» | `/twitch donations da login` ещё раз (токен отозван или приложение удалено) |
 | DonatePay: «не принял ключ» | Ключ скопирован не целиком или перевыпущен: donatepay.ru → Настройки → API → `/twitch donations dp key <ключ>` |
 | DonatePay: «слишком частые запросы» | Лимит DonatePay — 1 запрос в 20 с на ключ. Закрой другие программы, использующие тот же ключ (или подожди минуту) |
+| YouTube: OAuth callback не сработал / порт занят | Повтори `/twitch youtube login`; при неудаче вставь полный адрес callback: `/twitch youtube code <URL>`. Поменяй `youtube.callbackPort`, если порт занят |
+| YouTube: нет активного эфира или чат не появился | Проверь, что эфир идёт на канале вошедшего Google-аккаунта, модуль `youtubeLive` включён, а первая страница истории пропущена намеренно; `/twitch youtube debug on` |
+| YouTube: `401` / `invalid_grant` / нет ответов | Проверь YouTube Data API v3, Desktop Client ID и scopes; при необходимости `/twitch youtube logout` → `/twitch youtube login`. Для отправки нужен `youtube.force-ssl` и активный live chat |
 | Донат пришёл, но эффекта нет | Сумма меньше `minAmount`? Модуль включён (`/twitch modules`)? Смотри `/twitch history` и `/twitch donations` |
-| Хочу начать заново | Удали `config/twitchcraft-tokens.json` (или `/twitch logout`), `config/twitchcraft-donations.json` (или `da logout` / `dp logout`) и при желании `config/twitchcraft.json`, `config/twitchcraft-goals.json`, `config/twitchcraft-fundraisers.json` |
+| Хочу начать заново | Удали `config/twitchcraft-tokens.json` (или `/twitch logout`), файлы `twitchcraft-donations.json`, `twitchcraft-vk.json`, `twitchcraft-youtube.json` (или команды logout) и при желании `config/twitchcraft.json`, `config/twitchcraft-goals.json`, `config/twitchcraft-fundraisers.json` |
 
 Подробные логи: `.minecraft/logs/latest.log` (строки `TwitchCraft` и `EventSub`) и `.minecraft/logs/twitchcraft-events.log`.
 
 ## 11. Безопасность
 
-- Файлы `config/twitchcraft-tokens.json` (Twitch) и `config/twitchcraft-donations.json` (токен DonationAlerts, API-ключ DonatePay)
-  дают доступ к событиям твоего канала — **не показывай их на стриме** и никому не отправляй. Client ID секретом не является.
+- Файлы `config/twitchcraft-tokens.json` (Twitch), `config/twitchcraft-donations.json` (DonationAlerts/DonatePay),
+  `config/twitchcraft-vk.json` и `config/twitchcraft-youtube.json` (токены/секреты платформ) дают доступ к аккаунтам — **не показывай их на стриме** и никому не отправляй. OAuth Client ID секретом не является.
 - Для входа в DonationAlerts мод на 10 минут открывает порт `8631` **только на localhost** (127.0.0.1) и закрывает его сразу после получения токена.
 - Мод может писать в чат от твоего имени (только то, что ты сам указал в `reply` / `/twitch say`) и управлять
   наградами за баллы. Банить, менять настройки канала или стрима он не может — таких прав не запрашивается.

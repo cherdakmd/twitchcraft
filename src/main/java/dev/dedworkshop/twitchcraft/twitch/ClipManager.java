@@ -270,7 +270,7 @@ public class ClipManager {
 		Map<String, String> vars = new HashMap<>(mod.globalPlaceholders());
 		vars.put("clip_url", url);
 		vars.put("why", reason);
-		mod.announce(Placeholders.apply(text, vars), c.postClipToTwitch, c.postClipToVk, false);
+		mod.announce(Placeholders.apply(text, vars), c.postClipToTwitch, c.postClipToVk, c.postClipToYoutube, false);
 	}
 
 	// ---------- Ошибки ----------

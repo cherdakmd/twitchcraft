@@ -103,13 +103,13 @@ class ActionEditScreen extends BaseScreen {
 		soundParams.addChild(Widgets.floatField(font, (Widgets.FIELD - 6) / 2, draft.pitch, 0.5f, 2f, v -> draft.pitch = v));
 		row(show, r++, "Громкость / высота", soundParams);
 		if (kind == ActionKind.GAME_EVENT) {
-			row(show, r++, "Сообщение в чат Twitch и VK", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v,
+			row(show, r++, "Сообщение в чат Twitch, VK и YouTube", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v,
 					"💀 {cause} — смерть №{deaths}"));
 		} else if (kind == ActionKind.ADDON_TRIGGER) {
 			row(show, r++, "Сообщение в чат", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v,
 					"Сработал триггер {trigger}!"));
 		} else {
-			row(show, r++, "Ответ в чат Twitch", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v, "Спасибо, {user}!"));
+			row(show, r++, "Ответ в чат площадки-источника", Widgets.textField(font, Widgets.FIELD, draft.reply, v -> draft.reply = v, "Спасибо, {user}!"));
 		}
 		content.addChild(show);
 		if (kind == ActionKind.GAME_EVENT) {
@@ -119,7 +119,7 @@ class ActionEditScreen extends BaseScreen {
 		if (kind == ActionKind.ADDON_TRIGGER) {
 			content.addChild(Widgets.gray(font, "Переменные: {trigger} — имя триггера, {slot} — слот (v0…v3); плюс переменные события, "
 					+ "на котором сработал триггер ({user}, {amount}, {message}…). Сообщение уходит в чат, откуда пришло событие "
-					+ "(для событий игры — в чаты Twitch и VK)."));
+					+ "(для событий игры — в выбранные чаты Twitch, VK и YouTube)."));
 		}
 
 		section(content, "Команды (по одной на строку; «delay N» — пауза N тиков)");

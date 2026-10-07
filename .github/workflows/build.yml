@@ -58,7 +58,7 @@ jobs:
           unzip -l "$ADDON_JAR" | grep -q "ArtifactsAddon.class"
           echo "Собраны: $MOD_JAR и $ADDON_JAR (точка входа twitchcraft-addon на месте)."
 
-      - name: Автотесты (LogicTest + аддон «Артефакты» с боссами + хуки API аддонов + фейковые Twitch / DonationAlerts / DonatePay / VK Video Live)
+      - name: Автотесты (LogicTest + аддон «Артефакты» с боссами + хуки API аддонов + фейковые Twitch / DonationAlerts / DonatePay / VK / YouTube Live)
         id: tests
         # Обычный прогон — около 3 минут; 15 минут хватает с запасом и не даёт
         # зависшему фейковому серверу тянуть весь job до общего лимита.
@@ -173,7 +173,7 @@ jobs:
           parts.append(f"Коммит `{sha}` · [сам запуск]({os.environ.get('RUN_URL', '')})")
           parts.append("")
           parts.append(f"- {icon(build_outcome)} сборка (`./gradlew build`: мод + аддон «Артефакты»): **{build_outcome}**")
-          parts.append(f"- {icon(tests_outcome)} автотесты (LogicTest + ArtifactsHarness + фейковые Twitch / DonationAlerts / DonatePay / VK): **{tests_outcome}**")
+          parts.append(f"- {icon(tests_outcome)} автотесты (LogicTest + ArtifactsHarness + фейковые Twitch / DonationAlerts / DonatePay / VK / YouTube): **{tests_outcome}**")
           parts.append("")
 
           if build_outcome != "success" and build_lines:

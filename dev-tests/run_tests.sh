@@ -1,6 +1,6 @@
 #!/bin/sh
 # Запуск автотестов (нужны JDK 25 и собранный проект: ./gradlew build).
-# 1) Логические тесты (379): события, конфиг и миграция, плейсхолдеры, кулдауны, повторы, модули, лут, цели, сборы средств, очередь действий, события игры, таймеры чата, клипы,
+# 1) Логические тесты: события, конфиг и миграция, плейсхолдеры, кулдауны, повторы, модули, лут, цели, сборы средств, очередь действий, события игры, таймеры чата, клипы,
 #    донаты, ценник донатов, случайные награды «Пакость»/«Подарок», разбор событий VK Video Live.
 # 2) Логические тесты аддона «Артефакты» (ArtifactsHarness, 79): редкости, каталог (56 баффов, 13 проклятий, 35 именных артефактов),
 #    рост проклятия и разрушение на 100 %, лимит артефактов, освобождение лимита «выгоревшими» записями,
@@ -13,6 +13,7 @@
 # 3) Интеграционные тесты (34) против фейкового Twitch (python3 + pip install websockets): EventSub, Helix, метки и клипы.
 # 4) Интеграционные тесты (58) против фейковых DonationAlerts / DonatePay (OAuth URL/invalid_client, продление токенов Centrifugo, unsub и догонка донатов).
 # 5) Интеграционные тесты (36) против фейкового VK Video Live (OAuth code, DevAPI, Centrifugo v2: вход, события, награды, чат, 401→refresh, обрыв и догонка).
+# 6) Интеграционные тесты YouTube Live: refresh token, пропуск начальной истории, pollingIntervalMillis/nextPageToken, чат-события и очередь отправки.
 #
 # Если harness зависнет (на медленных раннерах CI бывает), он не должен тянуть весь прогон:
 # на один harness даётся JAVA_TIMEOUT секунд (по умолчанию 600; 0 — без ограничения).
@@ -60,7 +61,7 @@ javac -encoding UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" -d out BossHar
 run_java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -cp "out:$CLASSES:$CLASSES_ADDON:$MC:$JARS" dev.dedworkshop.twitchcraft.artifacts.BossHarness
 
 echo "== EventSubHarness (фейковый Twitch на 127.0.0.1:8080/8081, ~80 секунд) == ($(now))"
-javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java
+javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java YoutubeHarness.java
 python3 mock_twitch.py > out/mock.log 2>&1 &
 MOCK=$!
 sleep 2
@@ -87,5 +88,14 @@ run_java -Dtwitchcraft.vkApiUrl=http://127.0.0.1:8085/v1 -Dtwitchcraft.vkAuthUrl
      -Dtwitchcraft.vkWsUrl=ws://127.0.0.1:8086/connection/websocket -Dorg.apache.logging.log4j.level=WARN \
      -cp "out:$CLASSES:$MC:$JARS" VkHarness || { kill $MOCK; exit 1; }
 kill $MOCK
+
+echo "== YoutubeHarness (фейковый YouTube Data API v3 :8087: polling, pageToken, OAuth refresh, send queue) == ($(now))"
+python3 mock_youtube.py > out/mock_youtube.log 2>&1 &
+MOCK=$!
+sleep 1
+run_java -Dtwitchcraft.youtubeApiUrl=http://127.0.0.1:8087/youtube/v3 -Dtwitchcraft.youtubeTokenUrl=http://127.0.0.1:8087/oauth2/token \
+     -Dtwitchcraft.youtubeRevokeUrl=http://127.0.0.1:8087/oauth2/revoke -Dorg.apache.logging.log4j.level=WARN \
+     -cp "out:$CLASSES:$MC:$JARS" YoutubeHarness || { kill $MOCK; exit 1; }
+kill $MOCK
 echo
-echo "ALL GREEN: LogicTest + ArtifactsHarness + BossHarness + AddonHarness + EventSubHarness + DonationsHarness + VkHarness ($(now))"
+echo "ALL GREEN: LogicTest + ArtifactsHarness + BossHarness + AddonHarness + EventSubHarness + DonationsHarness + VkHarness + YoutubeHarness ($(now))"

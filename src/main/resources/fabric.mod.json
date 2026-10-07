@@ -3,7 +3,7 @@
 	"id": "twitchcraft",
 	"version": "${version}",
 	"name": "TwitchCraft",
-	"description": "Интеграция Twitch и VK Video Live с Minecraft: баллы канала, подписки, биты, фолловы, рейды, чат и донаты (DonationAlerts, DonatePay) запускают события в игре.",
+	"description": "Интеграция Twitch, VK Video Live и YouTube Live с Minecraft: чат, награды, подписки, битсы, рейды, Super Chat, членства и донаты запускают игровые действия.",
 	"authors": [
 		"dedworkshop"
 	],

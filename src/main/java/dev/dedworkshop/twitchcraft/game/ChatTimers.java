@@ -13,7 +13,7 @@ import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 
 /**
- * Таймеры чата: периодические сообщения бота в Twitch и VK.
+ * Таймеры чата: периодические сообщения бота в Twitch, VK и YouTube.
  * <p>
  * Таймер срабатывает, когда прошёл его интервал И (если задано minChatMessages) с прошлого срабатывания
  * в чатах было достаточно сообщений — чтобы бот не разговаривал с пустым чатом вне эфира.
@@ -101,7 +101,7 @@ public class ChatTimers {
 
 	/** Отправка в чаты (переопределяется в тестах). */
 	protected void send(ModConfig.ChatTimer timer, String text, boolean verbose) {
-		mod.announce(text, timer.twitch, timer.vk, verbose);
+		mod.announce(text, timer.twitch, timer.vk, timer.youtube, verbose);
 	}
 
 	/** Сколько секунд до следующего срабатывания (или -1, если таймер не активен). */
