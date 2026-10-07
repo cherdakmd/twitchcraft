@@ -176,7 +176,7 @@ public class YoutubeHarness {
 		check("userBannedEvent is counted as moderation and never becomes a game event",
 				waitFor(() -> youtube.moderationSeen() >= 1, 8000) && mod.received.size() == 1);
 		check("moderation is announced to the streamer when youtube.showModeration is on",
-				Chat.lastText().contains("тайм-аут") && Chat.lastText().contains("Troll Viewer"));
+				waitFor(() -> Chat.lastText().contains("тайм-аут") && Chat.lastText().contains("Troll Viewer"), 8000));
 		check("service messages (placeholderMessageEvent) are skipped without events",
 				waitFor(() -> chatCalls() >= 5, 8000) && mod.received.size() == 1);
 		check("chat participants are remembered for moderation by nickname", youtube.participantsCount() >= 3);
@@ -235,10 +235,11 @@ public class YoutubeHarness {
 				&& first(state().getAsJsonArray("transitions")).get("broadcastStatus").getAsString().equals("live")
 				&& first(state().getAsJsonArray("transitions")).get("id").getAsString().equals("broadcast-1")
 				&& first(state().getAsJsonArray("transitions")).getAsJsonObject("body").size() == 0);
-		check("transition success is reported in game chat", Chat.lastText().contains("эфир начат"));
+		check("transition success is reported in game chat",
+				waitFor(() -> Chat.lastText().contains("эфир начат"), 8000));
 		youtube.transition("testing", true);
 		check("redundantTransition is explained instead of failing",
-				waitFor(() -> count("transitions") >= 2, 8000) && Chat.lastText().contains("уже в состоянии"));
+				waitFor(() -> count("transitions") >= 2 && Chat.lastText().contains("уже в состоянии"), 8000));
 
 		youtube.setTitle("Новый заголовок");
 		check("title update sends the whole broadcast resource back (PUT liveBroadcasts)",
@@ -246,11 +247,11 @@ public class YoutubeHarness {
 		JsonObject update = first(state().getAsJsonArray("broadcast_updates"));
 		JsonObject updateBody = update.getAsJsonObject("body");
 		check("updated resource keeps required parts and the new title",
-				updateBody.getAsJsonObject("snippet").get("title").getAsString().equals("Новый заголовок")
+				waitFor(() -> youtube.broadcastTitle().equals("Новый заголовок"), 8000)
+				&& updateBody.getAsJsonObject("snippet").get("title").getAsString().equals("Новый заголовок")
 				&& updateBody.getAsJsonObject("status").get("privacyStatus").getAsString().equals("public")
 				&& updateBody.getAsJsonObject("contentDetails").getAsJsonObject("monitorStream").get("enableMonitorStream").getAsBoolean()
-				&& update.getAsJsonObject("query").get("part").getAsString().equals("snippet,status,contentDetails")
-				&& youtube.broadcastTitle().equals("Новый заголовок"));
+				&& update.getAsJsonObject("query").get("part").getAsString().equals("snippet,status,contentDetails"));
 
 		System.out.println("== YouTube chat moderation commands ==");
 		youtube.ban("New Viewer", 60);
@@ -262,7 +263,7 @@ public class YoutubeHarness {
 				&& banBody.get("type").getAsString().equals("temporary")
 				&& banBody.get("banDurationSeconds").getAsInt() == 60
 				&& banBody.getAsJsonObject("bannedUserDetails").get("channelId").getAsString().equals("UC-viewer")
-				&& Chat.lastText().contains("тайм-аут"));
+				&& waitFor(() -> Chat.lastText().contains("тайм-аут"), 8000));
 		youtube.ban("Viewer", 60);
 		check("an ambiguous nickname is not banned and the variants are listed",
 				Chat.lastText().contains("подходит нескольким зрителям") && count("bans") == 1);
