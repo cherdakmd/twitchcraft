@@ -240,7 +240,7 @@ public class YoutubeApi {
 		TwitchCraftClient.LOGGER.debug("YouTube: OAuth-токен продлён (ещё примерно {} мин)", expiresIn / 60);
 	}
 
-	private static JsonObject oauthError(Response response) {
+	private static ApiException oauthError(Response response) {
 		JsonObject root = response.json();
 		String reason = str(root, "error");
 		JsonElement error = root.get("error");
