@@ -501,6 +501,56 @@ public class ModConfig {
 		public boolean persistStats = true;
 	}
 
+	// ---------- Кастомные триггеры аддонов (1.9.0) ----------
+
+	/**
+	 * Действия из конфига, привязанные к кастомным триггерам аддонов (слоты {@code v0…v3}).
+	 * Ключ — слот ("v0"…"v3", регистр не важен, годится и просто "0"…"3"). Когда условие
+	 * триггера аддона срабатывает на событии, мод выполняет и собственные действия триггера,
+	 * и это действие — со всеми возможностями (шанс, кулдауны, лут, повторы, ответ в чат).
+	 * Дополнительно доступны плейсхолдеры {trigger} (имя триггера) и {slot} (например, "v2").
+	 * Экран настроек: /twitch config → Триггеры аддонов.
+	 */
+	public Map<String, Action> addonTriggers = new LinkedHashMap<>();
+
+	/**
+	 * Нормализует имя слота кастомного триггера: "V1" / " 1 " → "v1".
+	 *
+	 * @return "v0"…"v3" или null, если это не слот (мусор или номер вне диапазона)
+	 */
+	public static String normalizeTriggerSlot(String slot) {
+		if (slot == null) {
+			return null;
+		}
+		String value = slot.trim().toLowerCase(Locale.ROOT);
+		if (value.startsWith("v")) {
+			value = value.substring(1);
+		}
+		try {
+			int index = Integer.parseInt(value);
+			if (index < 0 || index >= dev.dedworkshop.twitchcraft.api.AddonRegistry.MAX_CUSTOM_TRIGGERS) {
+				return null;
+			}
+			return "v" + index;
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	/** Действие, привязанное к слоту кастомного триггера аддона; ключ кулдауна — "addonTrigger:v0…v3". */
+	public Resolved findAddonTriggerAction(String slot) {
+		String normalized = normalizeTriggerSlot(slot);
+		if (normalized == null || addonTriggers == null) {
+			return null;
+		}
+		for (Map.Entry<String, Action> entry : addonTriggers.entrySet()) {
+			if (entry.getValue() != null && normalized.equals(normalizeTriggerSlot(entry.getKey()))) {
+				return new Resolved(entry.getValue(), "addonTrigger:" + normalized);
+			}
+		}
+		return null;
+	}
+
 	// ---------- Таймеры чата (1.7.0) ----------
 
 	/** Периодические сообщения бота в чаты Twitch и VK. */
@@ -1332,6 +1382,7 @@ public class ModConfig {
 		if (gameEvents == null) gameEvents = new LinkedHashMap<>();
 		if (gameEventsSettings == null) gameEventsSettings = new GameEventsSettings();
 		gameEventsSettings.quietSecondsAfterJoin = Math.max(0, Math.min(gameEventsSettings.quietSecondsAfterJoin, 600));
+		if (addonTriggers == null) addonTriggers = new LinkedHashMap<>();
 		if (timers == null) timers = new ArrayList<>();
 		timers.removeIf(java.util.Objects::isNull);
 		for (ChatTimer timer : timers) {
@@ -1347,7 +1398,7 @@ public class ModConfig {
 		if (clips.clipChatText == null) clips.clipChatText = "";
 		if (warnings == null) warnings = new ArrayList<>();
 		for (Map<String, Action> map : List.of(chatCommands, cheer, resubTiers, giftSubTiers, raidTiers, rewards,
-				donationTiers, donationAlertsTiers, donatePayTiers, gameEvents)) {
+				donationTiers, donationAlertsTiers, donatePayTiers, gameEvents, addonTriggers)) {
 			for (Action action : map.values()) {
 				normalizeAction(action);
 			}
@@ -1517,6 +1568,17 @@ public class ModConfig {
 				}
 			} else if (fundsElement != null && !fundsElement.isJsonNull()) {
 				result.add("fundraisers должно быть списком [ ... ]");
+			}
+			JsonElement addonTriggersElement = obj.get("addonTriggers");
+			if (addonTriggersElement != null && addonTriggersElement.isJsonObject()) {
+				for (Map.Entry<String, JsonElement> entry : addonTriggersElement.getAsJsonObject().entrySet()) {
+					checkAction(entry.getValue(), "addonTriggers." + entry.getKey(), actionFields, result);
+					if (normalizeTriggerSlot(entry.getKey()) == null) {
+						result.add("ключ \"" + entry.getKey() + "\" в addonTriggers должен быть слотом кастомного триггера: v0…v3");
+					}
+				}
+			} else if (addonTriggersElement != null && !addonTriggersElement.isJsonNull()) {
+				result.add("addonTriggers должно быть объектом { ... }");
 			}
 			for (String mapName : List.of("cheer", "resubTiers", "giftSubTiers", "raidTiers", "rewards", "chatCommands")) {
 				JsonElement map = obj.get(mapName);

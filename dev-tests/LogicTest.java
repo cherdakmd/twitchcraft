@@ -200,6 +200,34 @@ public class LogicTest {
                 && joined.contains("clientID") && joined.contains("comands") && joined.contains("\"abc\""));
         System.out.println("     -> " + warnings);
 
+        // addonTriggers: действия из конфига, привязанные к кастомным триггерам аддонов (слоты v0…v3)
+        String atJson = "{\"addonTriggers\":{\"v2\":{\"message\":\"Босс {trigger} появился!\",\"cooldown\":30},"
+                + "\"V0\":{\"commands\":[\"say hi\"]},\"1\":{\"title\":\"Слот без буквы\"},\"v9\":{},\"oops\":{}}}";
+        ModConfig at = ModConfig.fromJson(atJson);
+        check("addonTriggers: слот v2 находится", at.findAddonTriggerAction("v2") != null
+                && "Босс {trigger} появился!".equals(at.findAddonTriggerAction("v2").action().message)
+                && "addonTrigger:v2".equals(at.findAddonTriggerAction("v2").key())
+                && at.findAddonTriggerAction("v2").action().cooldown == 30);
+        check("addonTriggers: поиск не смотрит на регистр, пробелы и букву v", at.findAddonTriggerAction(" V2 ") != null
+                && at.findAddonTriggerAction("0") != null && at.findAddonTriggerAction("1") != null);
+        check("addonTriggers: слот вне диапазона — null", at.findAddonTriggerAction("v9") == null
+                && at.findAddonTriggerAction("v4") == null && at.findAddonTriggerAction("-1") == null);
+        check("addonTriggers: мусор и пустой конфиг — null", at.findAddonTriggerAction(null) == null
+                && at.findAddonTriggerAction("абв") == null && ModConfig.createDefault().findAddonTriggerAction("v0") == null);
+        check("normalizeTriggerSlot приводит ключи", "v1".equals(ModConfig.normalizeTriggerSlot("V1"))
+                && "v0".equals(ModConfig.normalizeTriggerSlot(" 0 ")) && ModConfig.normalizeTriggerSlot("v4") == null
+                && ModConfig.normalizeTriggerSlot(null) == null && ModConfig.normalizeTriggerSlot("x") == null);
+        List<String> atWarnings = ModConfig.findWarnings(atJson);
+        check("addonTriggers: предупреждения на неверные слоты (v9, oops)", atWarnings.size() == 2
+                && String.join(" | ", atWarnings).contains("\"v9\"") && String.join(" | ", atWarnings).contains("\"oops\""));
+        check("addonTriggers: верные ключи без предупреждений",
+                ModConfig.findWarnings("{\"addonTriggers\":{\"v0\":{\"message\":\"hi\"},\"3\":{}}}").isEmpty());
+        check("addonTriggers: переживает JSON-раундтрип", ModConfig.fromJson(at.toJson()).findAddonTriggerAction("v2") != null);
+        ModConfig atClean = ModConfig.createDefault();
+        atClean.addonTriggers.put("v2", new ModConfig.Action("Босс появился!", "", ""));
+        check("addonTriggers: свой вывод без предупреждений", ModConfig.findWarnings(atClean.toJson()).isEmpty()
+                && "Босс появился!".equals(ModConfig.fromJson(atClean.toJson()).findAddonTriggerAction("v2").action().message));
+
         System.out.println("== Chat helpers ==");
         check("ChatSender.clean strips colors/newlines", ChatSender.clean("§aПривет &c{user}\nмир").equals("Привет {user} мир"));
         check("ChatSender.clean neutralizes /commands", ChatSender.clean("/ban x").startsWith(" /"));

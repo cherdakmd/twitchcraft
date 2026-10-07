@@ -243,6 +243,28 @@ public class AddonHarness {
 		check("every() ловит всё", AddonTrigger.every().matches(follow()) && AddonTrigger.every().matches(donate(1)));
 		check("сводка показывает счётчики", AddonRegistry.summary().contains("переменных:") && AddonRegistry.summary().contains("/4"));
 
+		// ---------- Что видит мод: сработавшие кастомные триггеры ----------
+		section("Хук 4: сработавшие триггеры и действия из конфига");
+		check("matchedCustomTriggers: рейд 30 → слот v1",
+				AddonRegistry.matchedCustomTriggers(raid(30)).stream().anyMatch(t -> t.index() == 1));
+		check("matchedCustomTriggers: рейд 30 — ровно один триггер",
+				AddonRegistry.matchedCustomTriggers(raid(30)).size() == 1);
+		check("matchedCustomTriggers: рейд 24 — ничего", AddonRegistry.matchedCustomTriggers(raid(24)).isEmpty());
+		check("matchedCustomTriggers: команда !артефакты → слот v2",
+				AddonRegistry.matchedCustomTriggers(command("артефакты", "")).stream().anyMatch(t -> t.index() == 2));
+		check("matchedCustomTriggers: падающее условие пропускается",
+				AddonRegistry.matchedCustomTriggers(donate(500)).isEmpty());
+		check("actionElementsFor: кастомные триггеры не попадают в список",
+				AddonRegistry.actionElementsFor(raid(30)).isEmpty());
+		check("actionElementsFor: обычные действия находятся",
+				AddonRegistry.actionElementsFor(follow()).contains(followElements));
+		check("elementsFor = обычные действия + действия кастомных триггеров",
+				AddonRegistry.elementsFor(raid(30)).size() == AddonRegistry.actionElementsFor(raid(30)).size() + 1);
+		check("elementsFor: обычные действия идут первыми",
+				!AddonRegistry.elementsFor(follow()).isEmpty() && AddonRegistry.elementsFor(follow()).get(0) == followElements);
+		check("elementsFor: null-событие — пусто", AddonRegistry.elementsFor(null).isEmpty()
+				&& AddonRegistry.matchedCustomTriggers(null).isEmpty() && AddonRegistry.actionElementsFor(null).isEmpty());
+
 		// ---------- Порядок и изоляция ----------
 		section("Порядок действий и изоляция");
 		AddonRegistry.clear();

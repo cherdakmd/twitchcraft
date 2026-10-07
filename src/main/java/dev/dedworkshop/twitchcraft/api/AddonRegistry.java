@@ -171,6 +171,15 @@ public final class AddonRegistry {
 	 * и действия их кастомных триггеров. Выполняет их мод.
 	 */
 	public static List<AddonElements> elementsFor(TwitchEvent event) {
+		List<AddonElements> result = actionElementsFor(event);
+		for (AddonCustomTrigger trigger : matchedCustomTriggers(event)) {
+			result.addAll(trigger.actions());
+		}
+		return result;
+	}
+
+	/** Элементы обычных действий аддонов (хук 2), у которых сработал триггер — без кастомных триггеров. */
+	public static List<AddonElements> actionElementsFor(TwitchEvent event) {
 		List<AddonElements> result = new ArrayList<>();
 		if (event == null) {
 			return result;
@@ -180,9 +189,18 @@ public final class AddonRegistry {
 				result.add(slot.action().elements());
 			}
 		}
+		return result;
+	}
+
+	/** Кастомные триггеры {@code v0…v3}, чьё условие совпало с событием (в порядке слотов). */
+	public static List<AddonCustomTrigger> matchedCustomTriggers(TwitchEvent event) {
+		List<AddonCustomTrigger> result = new ArrayList<>();
+		if (event == null) {
+			return result;
+		}
 		for (AddonCustomTrigger trigger : customTriggers()) {
 			if (matches(trigger.trigger(), event, "кастомный триггер " + trigger.slot())) {
-				result.addAll(trigger.actions());
+				result.add(trigger);
 			}
 		}
 		return result;

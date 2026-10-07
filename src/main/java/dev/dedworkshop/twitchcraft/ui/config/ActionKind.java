@@ -15,7 +15,9 @@ enum ActionKind {
 	/** Запись таблицы лута: есть name/weight, нет вложенного лута. */
 	LOOT(null),
 	/** Событие игры (смерть, достижение, босс, измерение): reply уходит в чаты Twitch и VK. */
-	GAME_EVENT(null);
+	GAME_EVENT(null),
+	/** Действие из конфига, привязанное к кастомному триггеру аддона (слот v0…v3). */
+	ADDON_TRIGGER(null);
 
 	final String keyLabel;
 

@@ -1,6 +1,7 @@
 package dev.dedworkshop.twitchcraft.action;
 
 import dev.dedworkshop.twitchcraft.TwitchCraftClient;
+import dev.dedworkshop.twitchcraft.api.AddonCustomTrigger;
 import dev.dedworkshop.twitchcraft.api.AddonElements;
 import dev.dedworkshop.twitchcraft.api.AddonRegistry;
 import dev.dedworkshop.twitchcraft.config.DonationPresets;
@@ -369,6 +370,8 @@ public class EventProcessor {
 	/**
 	 * Хуки аддонов на одном событии: привязка награды по id (хук 3) и действия с подходящим
 	 * триггером — обычные (хук 2) и из кастомных триггеров {@code v0…v3} (хук 4).
+	 * К сработавшему кастомному триггеру дополнительно выполняется действие из конфига
+	 * (раздел {@code addonTriggers}), если стример привязал его к слоту.
 	 * Мод выполняет элементы сам, ошибки аддона гасятся и пишутся в лог.
 	 *
 	 * @return true, если сработал хотя бы один хук аддона
@@ -386,7 +389,7 @@ public class EventProcessor {
 						binding.addonId(), binding.rewardTitle(), binding.rewardId(), event.message(), t);
 			}
 		}
-		for (AddonElements elements : AddonRegistry.elementsFor(event)) {
+		for (AddonElements elements : AddonRegistry.actionElementsFor(event)) {
 			handled = true;
 			if (elements == null || elements.isEmpty()) {
 				continue;
@@ -400,7 +403,99 @@ public class EventProcessor {
 			}
 			runner.run(event, action, vars, () -> { });
 		}
+		for (AddonCustomTrigger trigger : AddonRegistry.matchedCustomTriggers(event)) {
+			handled = true;
+			for (AddonElements elements : trigger.actions()) {
+				if (elements == null || elements.isEmpty()) {
+					continue;
+				}
+				ModConfig.Action action = elements.toConfigAction();
+				if (action.chance < 100 && random.nextInt(100) >= action.chance) {
+					if (notBlank(action.failMessage)) {
+						Chat.send(Component.literal(Placeholders.apply(Chat.colorize(action.failMessage), vars)));
+					}
+					continue;
+				}
+				runner.run(event, action, vars, () -> { });
+			}
+			runAddonTriggerAction(event, trigger.slot(), trigger.name(), vars);
+		}
 		return handled;
+	}
+
+	/**
+	 * Выполняет действие из конфига (раздел {@code addonTriggers}), привязанное к слоту
+	 * кастомного триггера аддона: шанс и кулдауны работают как у действий из конфига,
+	 * к плейсхолдерам добавляются {trigger} (имя триггера) и {slot} (например, "v2").
+	 * Тестовые события кулдауны не ставят.
+	 *
+	 * @return true, если действие выполнено
+	 */
+	public boolean runAddonTriggerAction(TwitchEvent event, String slot, String triggerName, Map<String, String> vars) {
+		ModConfig.Resolved resolved = mod.config().findAddonTriggerAction(slot);
+		if (resolved == null || !resolved.action().enabled || resolved.action().isEmpty()) {
+			return false;
+		}
+		ModConfig.Action action = resolved.action();
+		String slotName = resolved.key().substring("addonTrigger:".length());
+		if (!event.synthetic()) {
+			int wait = cooldowns.remaining(resolved.key(), event.userLogin(), action.cooldown, action.userCooldown);
+			if (wait > 0) {
+				if (mod.config().showEventsInChat && Minecraft.getInstance().player != null) {
+					Chat.warn("Кулдаун: ещё " + wait + " с — триггер аддона " + slotName);
+				}
+				TwitchCraftClient.LOGGER.debug("Триггер аддона {} на кулдауне ({} с): {}", slotName, wait, event.shortText());
+				return false;
+			}
+		}
+		if (action.chance < 100 && random.nextInt(100) >= action.chance) {
+			if (notBlank(action.failMessage)) {
+				Map<String, String> failVars = new HashMap<>(vars);
+				failVars.put("trigger", triggerName == null ? "" : triggerName);
+				failVars.put("slot", slotName);
+				Chat.send(Component.literal(Placeholders.apply(Chat.colorize(action.failMessage), failVars)));
+			}
+			markCooldown(event, resolved.key(), action);
+			return false;
+		}
+		markCooldown(event, resolved.key(), action);
+		Map<String, String> boundVars = new HashMap<>(vars);
+		boundVars.put("trigger", triggerName == null ? "" : triggerName);
+		boundVars.put("slot", slotName);
+		runner.run(event, action, boundVars, () -> { });
+		TwitchCraftClient.LOGGER.info("Триггер аддона {}: выполнено действие из конфига ({})", slotName, event.shortText());
+		return true;
+	}
+
+	/**
+	 * Ручной запуск кастомного триггера аддона (слот {@code v0…v3}): собственные действия
+	 * триггера плюс привязанное к слоту действие из конфига. Событие синтетическое —
+	 * кулдауны не ставятся, к площадкам обращений нет.
+	 *
+	 * @return сколько действий запущено; -1, если слот пуст (триггер никто не зарегистрировал)
+	 */
+	public int fireCustomTrigger(int index) {
+		AddonCustomTrigger trigger = AddonRegistry.customTrigger(index);
+		if (trigger == null) {
+			return -1;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		String player = mc.player != null ? mc.player.getName().getString() : "Игрок";
+		TwitchEvent event = TwitchEvent.test(TwitchEvent.Type.CHAT_COMMAND, player, 0, "", trigger.name(), "");
+		int fired = 0;
+		Map<String, String> vars = new HashMap<>(mod.globalPlaceholders());
+		vars.putAll(AddonRegistry.variables(event));
+		for (AddonElements elements : trigger.actions()) {
+			if (elements == null || elements.isEmpty()) {
+				continue;
+			}
+			runner.run(event, elements.toConfigAction(), vars, () -> { });
+			fired++;
+		}
+		if (runAddonTriggerAction(event, trigger.slot(), trigger.name(), vars)) {
+			fired++;
+		}
+		return fired;
 	}
 
 	/** Награду переименовали в Twitch — предупреждаем один раз: привязка по id продолжает работать. */
