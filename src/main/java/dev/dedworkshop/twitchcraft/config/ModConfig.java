@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 9;
+	public int configVersion = 10;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -281,6 +281,22 @@ public class ModConfig {
 		public boolean replies = true;
 		/** Писать все неизвестные и служебные сообщения API в logs/latest.log. */
 		public boolean debugEvents = false;
+		/** Сколько сообщений live chat запрашивать за один опрос (200…2000): больше — меньше запросов и расхода квоты. */
+		public int pollMaxResults = 2000;
+		/** Следить за зрителями эфира (videos.list: {youtube_viewers}, {youtube_live_time}, {youtube_title}). */
+		public boolean trackViewers = true;
+		/** Как часто обновлять данные эфира, секунд (не чаще раза в 15 с; 1 запрос = 1 единица квоты). */
+		public int viewersIntervalSeconds = 60;
+		/** Дневной бюджет квоты YouTube Data API в единицах (0 — не ограничивать; лимит нового проекта Google — 10 000). */
+		public int quotaBudget = 9000;
+		/** Останавливать опрос чата, когда бюджет квоты исчерпан: возобновится сам после сброса Google. */
+		public boolean quotaGuard = true;
+		/** Управление эфиром из игры: go live/testing/complete, title, ban, unban, delete (scope youtube.force-ssl). */
+		public boolean control = true;
+		/** Показывать в чате игры действия модераторов YouTube: баны, тайм-ауты, удаления и пометки спама. */
+		public boolean showModeration = false;
+		/** Тайм-аут зрителя по умолчанию для /twitch youtube ban <ник> (секунд; 0 — постоянный бан). */
+		public int defaultTimeoutSeconds = 300;
 	}
 
 	// ---------- Цели ----------
@@ -1378,6 +1394,11 @@ public class ModConfig {
 			configVersion = 9;
 			changed = true;
 		}
+		// v9 → v10: YouTube Live — учёт квоты Data API, зрители эфира, управление трансляцией и модерация
+		if (!present.contains("configVersion") || configVersion < 10) {
+			configVersion = 10;
+			changed = true;
+		}
 		return changed;
 	}
 
@@ -1498,6 +1519,10 @@ public class ModConfig {
 			while (port == donations.callbackPort || port == vk.callbackPort) port++;
 			youtube.callbackPort = port;
 		}
+		youtube.pollMaxResults = Math.max(200, Math.min(2000, youtube.pollMaxResults));
+		youtube.viewersIntervalSeconds = Math.max(15, Math.min(3600, youtube.viewersIntervalSeconds));
+		youtube.quotaBudget = Math.max(0, Math.min(100_000, youtube.quotaBudget));
+		youtube.defaultTimeoutSeconds = Math.max(0, Math.min(7 * 24 * 3600, youtube.defaultTimeoutSeconds));
 		if (gameEvents == null) gameEvents = new LinkedHashMap<>();
 		if (gameEventsSettings == null) gameEventsSettings = new GameEventsSettings();
 		gameEventsSettings.quietSecondsAfterJoin = Math.max(0, Math.min(gameEventsSettings.quietSecondsAfterJoin, 600));

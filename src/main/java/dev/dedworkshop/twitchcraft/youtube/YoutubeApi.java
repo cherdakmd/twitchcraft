@@ -31,9 +31,15 @@ public class YoutubeApi {
 
 	private final TwitchCraftClient mod;
 	private final Object refreshLock = new Object();
+	/** Оценка дневного расхода квоты YouTube Data API (Google фактический расход не возвращает). */
+	private final YoutubeQuota quota = new YoutubeQuota();
 
 	public YoutubeApi(TwitchCraftClient mod) {
 		this.mod = mod;
+	}
+
+	public YoutubeQuota quota() {
+		return quota;
 	}
 
 	public static String newCodeVerifier() {
@@ -108,12 +114,13 @@ public class YoutubeApi {
 	}
 
 	public JsonObject myChannel() throws IOException, InterruptedException {
-		return firstChannel(get("channels", channelQuery()));
+		return firstChannel(get("channels", channelQuery(), YoutubeQuota.COST_CHANNEL_LIST));
 	}
 
-	/** Validate a freshly exchanged token before replacing the credentials of an active account. */
+	/** Проверка свежевыданного токена до замены сохранённых учётных данных активного аккаунта. */
 	public JsonObject myChannel(String accessToken) throws IOException, InterruptedException {
-		Response response = send(url("channels", channelQuery()), accessToken, null, false);
+		charge(YoutubeQuota.COST_CHANNEL_LIST);
+		Response response = send("GET", url("channels", channelQuery()), accessToken, null);
 		if (!response.ok()) throw apiError(response);
 		return firstChannel(response.json());
 	}
@@ -130,25 +137,67 @@ public class YoutubeApi {
 		return items.get(0).getAsJsonObject();
 	}
 
-	/** Active broadcasts for the authenticated channel; a running broadcast carries snippet.liveChatId. */
+	/** Активные трансляции канала: у идущего эфира в snippet.liveChatId есть чат. */
 	public JsonArray activeBroadcasts() throws IOException, InterruptedException {
-		JsonObject result = get("liveBroadcasts", Map.of(
-				"part", "id,snippet,status",
-				"broadcastStatus", "active",
-				"maxResults", "50"
-		));
+		return broadcasts("active");
+	}
+
+	/**
+	 * Трансляции канала с нужным статусом.
+	 *
+	 * @param broadcastStatus active / upcoming / all (параметр liveBroadcasts.list)
+	 */
+	public JsonArray broadcasts(String broadcastStatus) throws IOException, InterruptedException {
+		Map<String, String> query = new LinkedHashMap<>();
+		query.put("part", "id,snippet,status");
+		if (broadcastStatus != null && !broadcastStatus.isBlank()) {
+			query.put("broadcastStatus", broadcastStatus);
+		}
+		query.put("maxResults", "50");
+		JsonObject result = get("liveBroadcasts", query, YoutubeQuota.COST_BROADCAST_LIST);
 		return array(result, "items");
 	}
 
-	public JsonObject listMessages(String liveChatId, String pageToken) throws IOException, InterruptedException {
+	/**
+	 * Трансляция целиком (id, snippet, status, contentDetails): нужна для
+	 * {@link #updateBroadcastTitle}, потому что liveBroadcasts.update принимает только полный ресурс.
+	 */
+	public JsonObject broadcast(String broadcastId) throws IOException, InterruptedException {
+		JsonObject result = get("liveBroadcasts", Map.of(
+				"part", "id,snippet,status,contentDetails",
+				"id", broadcastId
+		), YoutubeQuota.COST_BROADCAST_LIST);
+		JsonArray items = array(result, "items");
+		if (items.isEmpty() || !items.get(0).isJsonObject()) {
+			throw new ApiException(404, "liveBroadcastNotFound", "Трансляция YouTube не найдена");
+		}
+		return items.get(0).getAsJsonObject();
+	}
+
+	/** Видео эфира: snippet (заголовок) и liveStreamingDetails (зрители, время начала, activeLiveChatId). */
+	public JsonObject videoDetails(String videoId) throws IOException, InterruptedException {
+		JsonObject result = get("videos", Map.of(
+				"part", "snippet,liveStreamingDetails",
+				"id", videoId
+		), YoutubeQuota.COST_VIDEO_LIST);
+		JsonArray items = array(result, "items");
+		return items.isEmpty() || !items.get(0).isJsonObject() ? new JsonObject() : items.get(0).getAsJsonObject();
+	}
+
+	/**
+	 * Страница сообщений live chat.
+	 *
+	 * @param maxResults 200…2000: больше сообщений за один запрос — меньше единиц квоты на оживлённый чат
+	 */
+	public JsonObject listMessages(String liveChatId, String pageToken, int maxResults) throws IOException, InterruptedException {
 		Map<String, String> query = new LinkedHashMap<>();
 		query.put("part", "snippet,authorDetails");
 		query.put("liveChatId", liveChatId);
-		query.put("maxResults", "200");
+		query.put("maxResults", String.valueOf(Math.max(200, Math.min(2000, maxResults))));
 		if (pageToken != null && !pageToken.isBlank()) {
 			query.put("pageToken", pageToken);
 		}
-		return get("liveChat/messages", query);
+		return get("liveChat/messages", query, YoutubeQuota.COST_CHAT_LIST);
 	}
 
 	public JsonObject insertMessage(String liveChatId, String text) throws IOException, InterruptedException {
@@ -160,24 +209,128 @@ public class YoutubeApi {
 		snippet.add("textMessageDetails", details);
 		JsonObject body = new JsonObject();
 		body.add("snippet", snippet);
-		return post("liveChat/messages", Map.of("part", "snippet"), body);
+		return post("liveChat/messages", Map.of("part", "snippet"), body, YoutubeQuota.COST_CHAT_INSERT);
 	}
 
-	public JsonObject get(String path, Map<String, String> query) throws IOException, InterruptedException {
-		return request(path, query, null, false);
+	/** Удалить сообщение из live chat (модерация). */
+	public JsonObject deleteMessage(String messageId) throws IOException, InterruptedException {
+		return delete("liveChat/messages", Map.of("id", messageId), YoutubeQuota.COST_CHAT_DELETE);
 	}
 
-	private JsonObject post(String path, Map<String, String> query, JsonObject body) throws IOException, InterruptedException {
-		return request(path, query, body, true);
+	/**
+	 * Бан или тайм-аут зрителя в live chat.
+	 *
+	 * @param seconds длительность тайм-аута; 0 или меньше — постоянный бан
+	 */
+	public JsonObject banUser(String liveChatId, String bannedChannelId, int seconds) throws IOException, InterruptedException {
+		JsonObject snippet = new JsonObject();
+		snippet.addProperty("liveChatId", liveChatId);
+		snippet.addProperty("type", seconds > 0 ? "temporary" : "permanent");
+		if (seconds > 0) {
+			snippet.addProperty("banDurationSeconds", seconds);
+		}
+		JsonObject user = new JsonObject();
+		user.addProperty("channelId", bannedChannelId);
+		snippet.add("bannedUserDetails", user);
+		JsonObject body = new JsonObject();
+		body.add("snippet", snippet);
+		return post("liveChat/bans", Map.of("part", "snippet"), body, YoutubeQuota.COST_BAN_INSERT);
 	}
 
-	private JsonObject request(String path, Map<String, String> query, JsonObject body, boolean post) throws IOException, InterruptedException {
+	/** Снять бан по id, который вернул {@link #banUser}. */
+	public JsonObject unban(String banId) throws IOException, InterruptedException {
+		return delete("liveChat/bans", Map.of("id", banId), YoutubeQuota.COST_BAN_DELETE);
+	}
+
+	/**
+	 * Перевод трансляции в состояние {@code testing}, {@code live} или {@code complete}.
+	 * Тело запроса не передаётся: состояние задаётся параметром broadcastStatus.
+	 */
+	public JsonObject transition(String broadcastId, String broadcastStatus) throws IOException, InterruptedException {
+		return post("liveBroadcasts/transition", Map.of(
+				"id", broadcastId,
+				"broadcastStatus", broadcastStatus,
+				"part", "snippet,status"
+		), null, YoutubeQuota.COST_BROADCAST_TRANSITION);
+	}
+
+	/**
+	 * Заголовок трансляции. liveBroadcasts.update принимает ресурс целиком, поэтому сначала читаем
+	 * трансляцию, меняем snippet.title и отправляем её обратно; обязательные поля, которых не
+	 * оказалось в ответе, заполняются значениями YouTube по умолчанию.
+	 */
+	public JsonObject updateBroadcastTitle(String broadcastId, String title) throws IOException, InterruptedException {
+		JsonObject broadcast = broadcast(broadcastId);
+		JsonObject snippet = object(broadcast, "snippet");
+		if (snippet == null) {
+			snippet = new JsonObject();
+			broadcast.add("snippet", snippet);
+		}
+		snippet.addProperty("title", title);
+		JsonObject status = object(broadcast, "status");
+		if (status == null) {
+			status = new JsonObject();
+			broadcast.add("status", status);
+		}
+		if (str(status, "privacyStatus").isBlank()) {
+			status.addProperty("privacyStatus", "public");
+		}
+		JsonObject details = object(broadcast, "contentDetails");
+		if (details == null) {
+			details = new JsonObject();
+			broadcast.add("contentDetails", details);
+		}
+		JsonObject monitor = object(details, "monitorStream");
+		if (monitor == null) {
+			monitor = new JsonObject();
+			details.add("monitorStream", monitor);
+		}
+		defaultBool(monitor, "enableMonitorStream", false);
+		defaultBool(details, "isPrivateBroadcast", false);
+		defaultBool(details, "recordFromStart", true);
+		defaultBool(details, "makeForKids", false);
+		defaultBool(details, "enableAutoStart", false);
+		defaultBool(details, "enableAutoStop", false);
+		defaultBool(details, "enableDvr", true);
+		defaultBool(details, "enableEmbed", true);
+		return put("liveBroadcasts", Map.of("part", "snippet,status,contentDetails"), broadcast,
+				YoutubeQuota.COST_BROADCAST_UPDATE);
+	}
+
+	private static void defaultBool(JsonObject target, String key, boolean fallback) {
+		if (!target.has(key) || target.get(key).isJsonNull()) {
+			target.addProperty(key, fallback);
+		}
+	}
+
+	// ---------- Транспорт и учёт квоты ----------
+
+	private JsonObject get(String path, Map<String, String> query, int cost) throws IOException, InterruptedException {
+		return request("GET", path, query, null, cost);
+	}
+
+	private JsonObject post(String path, Map<String, String> query, JsonObject body, int cost) throws IOException, InterruptedException {
+		return request("POST", path, query, body, cost);
+	}
+
+	private JsonObject put(String path, Map<String, String> query, JsonObject body, int cost) throws IOException, InterruptedException {
+		return request("PUT", path, query, body, cost);
+	}
+
+	private JsonObject delete(String path, Map<String, String> query, int cost) throws IOException, InterruptedException {
+		return request("DELETE", path, query, null, cost);
+	}
+
+	private JsonObject request(String method, String path, Map<String, String> query, JsonObject body, int cost)
+			throws IOException, InterruptedException {
 		ensureFreshToken();
 		String observedToken = mod.youtubeStore().accessToken;
 		String url = url(path, query);
-		Response response = send(url, observedToken, body, post);
+		charge(cost);
+		Response response = send(method, url, observedToken, body);
 		if (response.status() == 401 && refreshAfter401(observedToken)) {
-			response = send(url, mod.youtubeStore().accessToken, body, post);
+			charge(cost); // повтор после продления токена Google тарифицирует как отдельный запрос
+			response = send(method, url, mod.youtubeStore().accessToken, body);
 		}
 		if (!response.ok()) {
 			throw apiError(response);
@@ -185,14 +338,23 @@ public class YoutubeApi {
 		return response.json();
 	}
 
-	private Response send(String url, String accessToken, JsonObject body, boolean post) throws IOException, InterruptedException {
+	/** Начислить расход квоты; счётчик привязан к OAuth Client ID текущего проекта Google. */
+	private void charge(int cost) {
+		quota.sync(mod.config() == null || mod.config().youtube == null ? "" : mod.config().youtube.clientId);
+		quota.charge(cost);
+	}
+
+	private Response send(String method, String url, String accessToken, JsonObject body) throws IOException, InterruptedException {
 		Map<String, String> headers = Map.of(
 				"Authorization", "Bearer " + accessToken,
 				"Accept", "application/json"
 		);
-		return post
-				? TwitchHttp.postJson(url, body, headers)
-				: TwitchHttp.get(url, headers);
+		return switch (method) {
+			case "POST" -> body == null ? TwitchHttp.postNoBody(url, headers) : TwitchHttp.postJson(url, body, headers);
+			case "PUT" -> TwitchHttp.putJson(url, body == null ? new JsonObject() : body, headers);
+			case "DELETE" -> TwitchHttp.delete(url, headers);
+			default -> TwitchHttp.get(url, headers);
+		};
 	}
 
 	private void ensureFreshToken() throws IOException, InterruptedException {
@@ -273,7 +435,7 @@ public class YoutubeApi {
 		}
 		if (message.isBlank()) message = response.errorMessage();
 		if (message.isBlank()) message = "HTTP " + response.status();
-		return new ApiException(response.status(), reason, message);
+		return new ApiException(response.status(), reason, message, response.retryAfterMillis());
 	}
 
 	private static String url(String path, Map<String, String> query) {
@@ -333,11 +495,17 @@ public class YoutubeApi {
 	public static final class ApiException extends IOException {
 		private final int status;
 		private final String reason;
+		private final long retryAfterMillis;
 
 		public ApiException(int status, String reason, String message) {
+			this(status, reason, message, 0);
+		}
+
+		public ApiException(int status, String reason, String message, long retryAfterMillis) {
 			super(message == null || message.isBlank() ? "HTTP " + status : message);
 			this.status = status;
 			this.reason = reason == null ? "" : reason;
+			this.retryAfterMillis = Math.max(0, retryAfterMillis);
 		}
 
 		public int status() {
@@ -346,6 +514,11 @@ public class YoutubeApi {
 
 		public String reason() {
 			return reason;
+		}
+
+		/** Заголовок Retry-After от Google в миллисекундах (0 — Google не сказал, сколько ждать). */
+		public long retryAfterMillis() {
+			return retryAfterMillis;
 		}
 
 		public boolean unauthorized() {
@@ -357,14 +530,35 @@ public class YoutubeApi {
 					|| reason.equalsIgnoreCase("liveChatNotFound") || status == 404;
 		}
 
+		/** Чат выключен владельцем канала (не «закончился» — эфир может продолжаться без чата). */
+		public boolean chatDisabled() {
+			return reason.equalsIgnoreCase("liveChatDisabled");
+		}
+
 		public boolean rateLimited() {
 			String normalized = reason.toLowerCase(java.util.Locale.ROOT);
 			return status == 429 || normalized.contains("ratelimit") || normalized.contains("rateexceeded")
-					|| normalized.contains("perminuteexceeded");
+					|| normalized.contains("perminuteexceeded") || normalized.contains("userrequestsexceed");
 		}
 
 		public boolean quotaExceeded() {
-			return reason.equalsIgnoreCase("quotaExceeded");
+			return reason.equalsIgnoreCase("quotaExceeded") || reason.equalsIgnoreCase("dailyLimitExceeded");
+		}
+
+		/** Не хватает прав OAuth или операция запрещена для этого канала/трансляции. */
+		public boolean permissionDenied() {
+			return status == 403 && (reason.equalsIgnoreCase("forbidden") || reason.toLowerCase(java.util.Locale.ROOT).contains("permission")
+					|| reason.toLowerCase(java.util.Locale.ROOT).contains("notallowed"));
+		}
+
+		/** Трансляция уже в запрошенном состоянии (или переходит в него). */
+		public boolean redundant() {
+			return reason.equalsIgnoreCase("redundantTransition");
+		}
+
+		/** Ошибка сервера Google (5xx) — стоит повторить с нарастающей задержкой. */
+		public boolean serverError() {
+			return status >= 500;
 		}
 	}
 }

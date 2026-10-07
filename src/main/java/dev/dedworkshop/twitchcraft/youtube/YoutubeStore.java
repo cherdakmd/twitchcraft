@@ -28,6 +28,12 @@ public class YoutubeStore {
 	public volatile String scopes = "";
 	public volatile String channelId = "";
 	public volatile String channelTitle = "";
+	/** Учёт дневной квоты YouTube Data API: Client ID проекта, к которому относится счётчик. */
+	public volatile String quotaClientId = "";
+	/** Ключ квотных суток (дата в тихоокеанской зоне, когда Google обнуляет расход). */
+	public volatile String quotaDay = "";
+	/** Израсходовано единиц за текущие квотные сутки (оценка мода). */
+	public volatile int quotaUnits;
 
 	private transient Path path;
 
@@ -123,8 +129,19 @@ public class YoutubeStore {
 		if (store.scopes == null) store.scopes = "";
 		if (store.channelId == null) store.channelId = "";
 		if (store.channelTitle == null) store.channelTitle = "";
+		if (store.quotaClientId == null) store.quotaClientId = "";
+		if (store.quotaDay == null) store.quotaDay = "";
+		if (store.quotaUnits < 0) store.quotaUnits = 0;
 		store.path = path;
 		return store;
+	}
+
+	/** Записать оценку дневного расхода квоты (не чаще раза в минуту — см. YoutubeLive). */
+	public synchronized void saveQuota(String forClientId, String forDay, int units) {
+		quotaClientId = forClientId == null ? "" : forClientId;
+		quotaDay = forDay == null ? "" : forDay;
+		quotaUnits = Math.max(0, units);
+		save();
 	}
 
 	public synchronized void save() {
