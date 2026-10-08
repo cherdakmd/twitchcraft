@@ -101,7 +101,7 @@ TwitchCraft — клиентский мод для Minecraft 26.3 (Fabric). Он
    нажми *Install*. В лаунчере появится профиль **fabric-loader-26.3**.
 2. **Fabric API** для 26.3 — файл `fabric-api-0.161.0+26.3.jar` (или новее для 26.3):
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>.
-3. **TwitchCraft** — файл **[`twitchcraft-1.12.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)**
+3. **TwitchCraft** — файл **[`twitchcraft-1.12.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/tag/v1.12.0)**
    из вложения релиза на GitHub (в `release/` репозитория лежат jar 1.7.0 и 1.7.1; если нужной версии во вложениях нет —
    собери сам: `./gradlew build`, готовые файлы появятся в `build/libs`).
    Страница опубликованных версий: <https://github.com/cherdakmd/twitchcraft/releases>.
