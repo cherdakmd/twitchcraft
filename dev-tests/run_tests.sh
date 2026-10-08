@@ -46,6 +46,43 @@ now() {
 	date -u +%H:%M:%S
 }
 
+# Ожидание готовности портов мока вместо фиксированного sleep: на загруженных раннерах CI
+# python-мок может стартовать дольше, и harness падает с connection refused.
+# Щуп — голое TCP-подключение без handshake: счётчики соединений моки ведут только после
+# успешного handshake, так что сценарии тестов щуп не сбивает.
+# $1 — порт на 127.0.0.1, $2 — PID мока (процесс умер — выходим сразу), $3 — таймаут в секундах (по умолчанию 30).
+wait_for_port() {
+	python3 - "$1" "$2" "${3:-30}" <<'EOF'
+import os, socket, sys, time
+port, pid, timeout = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
+deadline = time.time() + timeout
+while time.time() < deadline:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        sys.exit("мок (PID %d) завершился до открытия порта %d" % (pid, port))
+    s = socket.socket()
+    try:
+        s.settimeout(1)
+        s.connect(("127.0.0.1", port))
+        sys.exit(0)
+    except OSError:
+        time.sleep(0.2)
+    finally:
+        s.close()
+sys.exit("порт %d не открылся за %d с" % (port, timeout))
+EOF
+}
+
+# Ждём порты мока; при неудаче гасим мок, показываем его лог и падаем.
+# $1 — PID мока, $2 — файл лога мока, дальше — порты.
+wait_for_mock() {
+	PID="$1"; LOG="$2"; shift 2
+	for PORT in "$@"; do
+		wait_for_port "$PORT" "$PID" || { kill "$PID" 2>/dev/null || true; echo "--- $LOG ---"; cat "$LOG"; exit 1; }
+	done
+}
+
 mkdir -p out
 echo "== LogicTest == ($(now))"
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java LogicTest.java
@@ -69,7 +106,7 @@ echo "== EventSubHarness (фейковый Twitch на 127.0.0.1:8080/8081, ~80 
 javac -encoding UTF-8 -cp "out:$CLASSES:$MC:$JARS" -d out stubs/net/minecraft/client/Minecraft.java stubs/net/minecraft/client/player/LocalPlayer.java EventSubHarness.java DonationsHarness.java VkHarness.java YoutubeHarness.java
 python3 mock_twitch.py > out/mock.log 2>&1 &
 MOCK=$!
-sleep 2
+wait_for_mock $MOCK out/mock.log 8080 8081
 run_java -Dtwitchcraft.eventsubUrl=ws://127.0.0.1:8080/ws -Dtwitchcraft.helixUrl=http://127.0.0.1:8081 \
      -Dorg.apache.logging.log4j.level=WARN -cp "out:$CLASSES:$MC:$JARS" EventSubHarness || { kill $MOCK; exit 1; }
 kill $MOCK
@@ -77,7 +114,7 @@ kill $MOCK
 echo "== DonationsHarness (фейковые DonationAlerts :8082/:8083 и DonatePay :8084, ~25 секунд) == ($(now))"
 python3 mock_donations.py > out/mock_donations.log 2>&1 &
 MOCK=$!
-sleep 2
+wait_for_mock $MOCK out/mock_donations.log 8082 8083 8084
 run_java -Dtwitchcraft.daApiUrl=http://127.0.0.1:8082/api/v1 -Dtwitchcraft.daOauthUrl=http://127.0.0.1:8082/oauth/authorize \
      -Dtwitchcraft.daWsUrl=ws://127.0.0.1:8083/connection/websocket -Dtwitchcraft.donatePayUrl=http://127.0.0.1:8084/api/v1 \
      -Dtwitchcraft.donatePayMinIntervalMs=1000 -Dorg.apache.logging.log4j.level=WARN \
@@ -87,7 +124,7 @@ kill $MOCK
 echo "== VkHarness (фейковый VK Video Live :8085/:8086, ~20 секунд) == ($(now))"
 python3 mock_vk.py > out/mock_vk.log 2>&1 &
 MOCK=$!
-sleep 2
+wait_for_mock $MOCK out/mock_vk.log 8085 8086
 run_java -Dtwitchcraft.vkApiUrl=http://127.0.0.1:8085/v1 -Dtwitchcraft.vkAuthUrl=http://127.0.0.1:8085/app/oauth2/authorize \
      -Dtwitchcraft.vkTokenUrl=http://127.0.0.1:8085/oauth/server/token -Dtwitchcraft.vkRevokeUrl=http://127.0.0.1:8085/oauth/server/revoke \
      -Dtwitchcraft.vkWsUrl=ws://127.0.0.1:8086/connection/websocket -Dorg.apache.logging.log4j.level=WARN \
@@ -97,7 +134,7 @@ kill $MOCK
 echo "== YoutubeHarness (фейковый YouTube Data API v3 :8087: polling, pageToken, maxResults, квота, backoff, зрители, управление эфиром и модерация) == ($(now))"
 python3 mock_youtube.py > out/mock_youtube.log 2>&1 &
 MOCK=$!
-sleep 1
+wait_for_mock $MOCK out/mock_youtube.log 8087
 run_java -Dtwitchcraft.youtubeApiUrl=http://127.0.0.1:8087/youtube/v3 -Dtwitchcraft.youtubeTokenUrl=http://127.0.0.1:8087/oauth2/token \
      -Dtwitchcraft.youtubeRevokeUrl=http://127.0.0.1:8087/oauth2/revoke -Dorg.apache.logging.log4j.level=WARN \
      -cp "out:$CLASSES:$MC:$JARS" YoutubeHarness || { kill $MOCK; exit 1; }
