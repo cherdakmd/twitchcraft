@@ -1843,7 +1843,9 @@ public class LogicTest {
             double[] u = WorldProjection.up(a[0], a[1]);
             double dotFR = f[0] * r[0] + f[1] * r[1] + f[2] * r[2];
             double dotFU = f[0] * u[0] + f[1] * u[1] + f[2] * u[2];
-            basisMatchesGame &= Math.abs(g.x - f[0]) < 1e-6 && Math.abs(g.y - f[1]) < 1e-6 && Math.abs(g.z - f[2]) < 1e-6
+            // Vec3.directionFromRotation считает через Mth.sin/cos (таблица, ошибка до ~1e-4), поэтому допуск 1e-3:
+            // ошибка знака или оси даёт около 1, такое расхождение заметно.
+            basisMatchesGame &= Math.abs(g.x - f[0]) < 1e-3 && Math.abs(g.y - f[1]) < 1e-3 && Math.abs(g.z - f[2]) < 1e-3
                     && Math.abs(dotFR) < 1e-9 && Math.abs(dotFU) < 1e-9;
         }
         check("projection: «вперёд» совпадает с Vec3.directionFromRotation, базис ортогонален", basisMatchesGame);
