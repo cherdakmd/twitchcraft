@@ -82,6 +82,20 @@ class SettingsScreen extends BaseScreen {
 				v -> draft.chatReplies.noPermissionReply = v, "{user} {permission}"));
 		content.addChild(chat);
 
+		// --- Таблички чата в воздухе
+		section(content, "Таблички в воздухе");
+		GridLayout signs = Widgets.form();
+		r = 0;
+		row(signs, r++, "Показывать", Widgets.toggle("Таблички", draft.chatSigns.enabled, v -> draft.chatSigns.enabled = v, Widgets.FIELD,
+				"Сообщения Twitch, VK и YouTube висят в воздухе перед игроком, как таблички"));
+		row(signs, r++, "В окне чата", Widgets.toggle("Дублировать", draft.chatSigns.keepInChat, v -> draft.chatSigns.keepInChat = v, Widgets.FIELD,
+				"Дублировать сообщение строкой в окне чата. Выключите, если нужны только таблички"));
+		row(signs, r++, "Держать, секунд", Widgets.intField(font, Widgets.FIELD, draft.chatSigns.seconds, 1, 120, v -> draft.chatSigns.seconds = v));
+		row(signs, r++, "Сколько сразу", Widgets.intField(font, Widgets.FIELD, draft.chatSigns.maxVisible, 1, 12, v -> draft.chatSigns.maxVisible = v));
+		row(signs, r++, "Расстояние, блоков", Widgets.intField(font, Widgets.FIELD, draft.chatSigns.distance, 2, 30, v -> draft.chatSigns.distance = v));
+		row(signs, r++, "Размер, %", Widgets.intField(font, Widgets.FIELD, draft.chatSigns.scale, 25, 300, v -> draft.chatSigns.scale = v));
+		content.addChild(signs);
+
 		// --- Награды
 		section(content, "Награды за баллы (API)");
 		GridLayout rewards = Widgets.form();
