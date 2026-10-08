@@ -1820,6 +1820,12 @@ public class LogicTest {
                 && ChatSignLayout.alpha(10_000, 9000, 1000) == 255 && ChatSignLayout.alpha(10_000, 500, 1000) == 128
                 && ChatSignLayout.alpha(10_000, 0, 1000) == 0);
         check("sign: метка платформы без цветовых кодов", ChatSignLayout.plain("§9[VK]§r ").equals("[VK] "));
+        check("sign: клик по табличке — попадание внутрь прямоугольника и на край, мимо — нет",
+                ChatSignLayout.contains(10, 10, 20, 20, 15, 15) && ChatSignLayout.contains(10, 10, 20, 20, 10, 20)
+                        && !ChatSignLayout.contains(10, 10, 20, 20, 21, 15));
+        check("sign: клик достаётся табличке, если она ближе блока или моба; при промахе — всегда",
+                ChatSignLayout.plaqueFirst(3, Double.POSITIVE_INFINITY) && ChatSignLayout.plaqueFirst(3, 3.5)
+                        && !ChatSignLayout.plaqueFirst(3, 2) && !ChatSignLayout.plaqueFirst(3, 3));
 
         // Проекция: точки в центре, справа/сверху, за камерой, взгляд вверх
         WorldProjection.Screen centre = WorldProjection.project(0, 0, 6, 0, 0, 0, 0, 0, 70, 854, 480);

@@ -124,6 +124,19 @@ public final class ChatSignLayout {
 		return (int) Math.round(255 * in * out);
 	}
 
+	/** Попадает ли точка (px, py) в прямоугольник [x0, x1] × [y0, y1], края включены. */
+	public static boolean contains(double x0, double y0, double x1, double y1, double px, double py) {
+		return px >= x0 && px <= x1 && py >= y0 && py <= y1;
+	}
+
+	/**
+	 * Клик по табличке под прицелом достаётся ей, если табличка ближе блока или моба за ней.
+	 * Если прицел ни во что не попал ({@link Double#POSITIVE_INFINITY}), табличка получает клик всегда.
+	 */
+	public static boolean plaqueFirst(double plaqueDepth, double solidDistance) {
+		return plaqueDepth < solidDistance;
+	}
+
 	/** Текст без §-кодов цвета (например, метка платформы из префикса чата). */
 	public static String plain(String text) {
 		return text == null ? "" : text.replaceAll("§[0-9a-fk-orA-FK-OR]", "");
