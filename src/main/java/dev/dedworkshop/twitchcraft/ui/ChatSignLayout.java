@@ -21,6 +21,13 @@ public final class ChatSignLayout {
 	public static final int MAX_MESSAGE_LINES = 3;
 	/** Табличка появляется за это время, миллисекунды. */
 	public static final long FADE_IN_MS = 250;
+	/**
+	 * Досягаемость для разбивания кликом, блоки: около 6, как дистанция по умолчанию. Ванильная рука достаёт 4.5,
+	 * но табличка появляется ровно на дистанции, и её должно быть можно разбить, стоя на месте.
+	 */
+	public static final double BREAK_REACH = 6.0;
+	/** Допуск к досягаемости, блоки: за тик игрок смещается примерно на 0.2, табличка уже поставлена на старом месте. */
+	private static final double REACH_TOLERANCE = 0.25;
 
 	/** Кусок строки одного цвета (ARGB). */
 	public record Segment(String text, int argb) {
@@ -130,11 +137,11 @@ public final class ChatSignLayout {
 	}
 
 	/**
-	 * Клик по табличке под прицелом достаётся ей, если табличка ближе блока или моба за ней.
-	 * Если прицел ни во что не попал ({@link Double#POSITIVE_INFINITY}), табличка получает клик всегда.
+	 * Табличку под прицелом можно разбить кликом, если она в досягаемости ({@link #BREAK_REACH}) и ближе блока или моба
+	 * за ней. Если прицел ни во что не попал ({@link Double#POSITIVE_INFINITY}), важна только досягаемость.
 	 */
-	public static boolean plaqueFirst(double plaqueDepth, double solidDistance) {
-		return plaqueDepth < solidDistance;
+	public static boolean breakable(double plaqueDepth, double solidDistance) {
+		return plaqueDepth <= BREAK_REACH + REACH_TOLERANCE && plaqueDepth < solidDistance;
 	}
 
 	/** Текст без §-кодов цвета (например, метка платформы из префикса чата). */

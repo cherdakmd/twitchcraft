@@ -35,8 +35,9 @@ import java.util.Random;
  * Если между камерой и табличкой стоит блок, табличка не рисуется (проверка лучом раз в {@link #OCCLUSION_EVERY_MS}).
  * Новые таблички встают у базы, старые — над ними. Сверх лимита «сколько сразу» самые старые гаснут быстро.
  *
- * <p>Табличку можно разбить рукой: наведи прицел (центр экрана) и нажми ЛКМ. Клик забирается в начале тика, до
- * обработки кнопок игры, и только если табличка ближе блока или моба за ней. Иначе удар идёт миру как обычно.
+ * <p>Табличку можно разбить рукой: наведи прицел (центр экрана) на табличку в пределах досягаемости
+ * ({@link ChatSignLayout#BREAK_REACH}) и нажми ЛКМ. Клик забирается в начале тика, до обработки кнопок игры, и только
+ * если табличка ближе блока или моба за ней. Иначе удар идёт миру как обычно.
  */
 public final class ChatSigns implements HudElement {
 	private static final ChatSigns INSTANCE = new ChatSigns();
@@ -330,7 +331,8 @@ public final class ChatSigns implements HudElement {
 			sign.onScreen = sign.alpha > 0 && sign.top <= h && sign.bottom >= 0 && sign.right >= 0 && sign.left <= w;
 		}
 
-		// Прицел — центр экрана. Под ним ближайшая видимая табличка; её можно разбить, если за ней нет блока или моба ближе
+		// Прицел — центр экрана. Под ним ближайшая видимая табличка; её можно разбить, если она в досягаемости
+		// и за ней нет блока или моба ближе
 		Sign aimed = null;
 		for (Sign sign : drawn) {
 			if (sign.onScreen && ChatSignLayout.contains(sign.left, sign.top, sign.right, sign.bottom, w / 2.0, h / 2.0)
@@ -342,7 +344,7 @@ public final class ChatSigns implements HudElement {
 			HitResult solid = mc.hitResult;
 			double solidDistance = solid == null || solid.getType() == HitResult.Type.MISS
 					? Double.POSITIVE_INFINITY : eye.distanceTo(solid.getLocation());
-			if (ChatSignLayout.plaqueFirst(aimed.screen.depth(), solidDistance)) {
+			if (ChatSignLayout.breakable(aimed.screen.depth(), solidDistance)) {
 				breakTarget = aimed;
 			}
 		}

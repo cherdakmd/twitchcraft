@@ -1823,9 +1823,11 @@ public class LogicTest {
         check("sign: клик по табличке — попадание внутрь прямоугольника и на край, мимо — нет",
                 ChatSignLayout.contains(10, 10, 20, 20, 15, 15) && ChatSignLayout.contains(10, 10, 20, 20, 10, 20)
                         && !ChatSignLayout.contains(10, 10, 20, 20, 21, 15));
-        check("sign: клик достаётся табличке, если она ближе блока или моба; при промахе — всегда",
-                ChatSignLayout.plaqueFirst(3, Double.POSITIVE_INFINITY) && ChatSignLayout.plaqueFirst(3, 3.5)
-                        && !ChatSignLayout.plaqueFirst(3, 2) && !ChatSignLayout.plaqueFirst(3, 3));
+        check("sign: разбить кликом можно табличку в досягаемости (около 6 блоков) и ближе блока или моба; при промахе — любую в досягаемости",
+                ChatSignLayout.BREAK_REACH == 6.0 && ChatSignLayout.breakable(3, Double.POSITIVE_INFINITY)
+                        && ChatSignLayout.breakable(6, Double.POSITIVE_INFINITY) && ChatSignLayout.breakable(3, 3.5)
+                        && !ChatSignLayout.breakable(3, 2) && !ChatSignLayout.breakable(3, 3)
+                        && !ChatSignLayout.breakable(8, Double.POSITIVE_INFINITY));
 
         // Проекция: точки в центре, справа/сверху, за камерой, взгляд вверх
         WorldProjection.Screen centre = WorldProjection.project(0, 0, 6, 0, 0, 0, 0, 0, 70, 854, 480);
