@@ -37,7 +37,7 @@
    <https://modrinth.com/mod/fabric-api/versions?g=26.3>
 3. Положи в папку `.minecraft/mods/` два файла:
    - `fabric-api-0.161.0+26.3.jar`
-   - **[`twitchcraft-1.11.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)** — готовый JAR из GitHub Releases
+   - **[`twitchcraft-1.12.0.jar`](https://github.com/cherdakmd/twitchcraft/releases/latest)** — готовый JAR из GitHub Releases
      (там же лежит необязательный `artifact-addon-1.0.0.jar` — аддон «Артефакты»); все опубликованные версии —
      на странице **[Releases](https://github.com/cherdakmd/twitchcraft/releases)**. В папке `release/` репозитория
      лежат jar версий 1.7.0 и 1.7.1 и `ЦЕННИК.md` — текст для панели под стримом.
@@ -409,7 +409,7 @@ Twitch отвечает 404 — мод тихо пропускает (раз в 
 
 ## 5е. Аддоны TwitchCraft — отдельные мод-файлы (например «Артефакты»)
 
-TwitchCraft 1.11.0 принимает **аддоны**: это отдельные моды (свой jar), которые ставятся в `mods` рядом с TwitchCraft и объявляют
+TwitchCraft 1.12.0 принимает **аддоны**: это отдельные моды (свой jar), которые ставятся в `mods` рядом с TwitchCraft и объявляют
 точку входа Fabric `twitchcraft-addon`. Аддон — необязательная часть: без него мод работает как обычно, а `/twitch addons` покажет
 «аддоны не подключены». Ошибка аддона не роняет игру: каждый вызов обёрнут в try/catch.
 
@@ -904,7 +904,7 @@ gradlew.bat build
 ./gradlew build
 ```
 
-Готовый мод появится в `build/libs/twitchcraft-1.11.0.jar` (и `artifact-addon-1.0.0.jar`, если собран аддон «Артефакты»).
+Готовый мод появится в `build/libs/twitchcraft-1.12.0.jar` (и `artifact-addon-1.0.0.jar`, если собран аддон «Артефакты»).
 Первая сборка качает Minecraft и зависимости (~600 МБ) — это нормально.
 
 **IntelliJ IDEA** (Community бесплатна): *File → Open* → папка проекта → дождаться синхронизации Gradle.
