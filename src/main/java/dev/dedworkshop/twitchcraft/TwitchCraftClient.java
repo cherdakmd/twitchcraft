@@ -22,6 +22,7 @@ import dev.dedworkshop.twitchcraft.twitch.RewardManager;
 import dev.dedworkshop.twitchcraft.twitch.TwitchApi;
 import dev.dedworkshop.twitchcraft.twitch.TwitchAuth;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
+import dev.dedworkshop.twitchcraft.ui.ChatSigns;
 import dev.dedworkshop.twitchcraft.ui.Hotkeys;
 import dev.dedworkshop.twitchcraft.ui.OverlayHud;
 import dev.dedworkshop.twitchcraft.util.Chat;
@@ -141,6 +142,7 @@ public class TwitchCraftClient implements ClientModInitializer {
 		Hotkeys.register(this);
 		OverlayHud.register(this);
 		dev.dedworkshop.twitchcraft.ui.FundraiserBar.register(this);
+		ChatSigns.register();
 		game.register();
 
 		// Каждый тик продвигаем очередь событий и команд (нужно для пауз "delay N")

@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 10;
+	public int configVersion = 11;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -108,6 +108,26 @@ public class ModConfig {
 		public boolean showSharedChat = true;
 		/** Разрешать зрителям канала-партнёра (Shared Chat) запускать наши чат-команды. По умолчанию — нет. */
 		public boolean sharedChatCommands = false;
+	}
+
+	// ---------- Таблички чата в воздухе ----------
+
+	public ChatSignSettings chatSigns = new ChatSignSettings();
+
+	/** Сообщения Twitch, VK и YouTube висят в воздухе перед игроком, как таблички (см. ui/ChatSigns). */
+	public static class ChatSignSettings {
+		/** Показывать сообщения чата табличками в воздухе перед игроком. */
+		public boolean enabled = true;
+		/** Дублировать сообщение строкой в окне чата Minecraft. Выключите, если нужны только таблички. */
+		public boolean keepInChat = true;
+		/** Сколько секунд табличка висит в воздухе. */
+		public int seconds = 10;
+		/** Сколько табличек одновременно. Лишние самые старые гаснут раньше срока. */
+		public int maxVisible = 5;
+		/** Расстояние до табличек, блоки. На этом расстоянии они имеют размер «100 %». */
+		public int distance = 6;
+		/** Размер табличек, проценты. */
+		public int scale = 100;
 	}
 
 	// ---------- Ответы в чат Twitch ----------
@@ -1399,6 +1419,15 @@ public class ModConfig {
 			configVersion = 10;
 			changed = true;
 		}
+		// v10 → v11: таблички чата в воздухе
+		if (!present.contains("chatSigns")) {
+			chatSigns = defaults.chatSigns;
+			changed = true;
+		}
+		if (!present.contains("configVersion") || configVersion < 11) {
+			configVersion = 11;
+			changed = true;
+		}
 		return changed;
 	}
 
@@ -1482,6 +1511,11 @@ public class ModConfig {
 		if (chatReplies == null) chatReplies = new ChatReplies();
 		if (rewardsSettings == null) rewardsSettings = new RewardsSettings();
 		if (overlay == null) overlay = new Overlay();
+		if (chatSigns == null) chatSigns = new ChatSignSettings();
+		chatSigns.seconds = Math.max(1, Math.min(120, chatSigns.seconds));
+		chatSigns.maxVisible = Math.max(1, Math.min(12, chatSigns.maxVisible));
+		chatSigns.distance = Math.max(2, Math.min(30, chatSigns.distance));
+		chatSigns.scale = Math.max(25, Math.min(300, chatSigns.scale));
 		if (chatCommandPrefix == null || chatCommandPrefix.isEmpty()) chatCommandPrefix = "!";
 		if (chatCommands == null) chatCommands = new LinkedHashMap<>();
 		if (cheer == null) cheer = new LinkedHashMap<>();

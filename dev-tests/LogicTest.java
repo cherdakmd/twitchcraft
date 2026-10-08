@@ -17,13 +17,17 @@ import dev.dedworkshop.twitchcraft.twitch.ChatSender;
 import dev.dedworkshop.twitchcraft.twitch.EventSubClient;
 import dev.dedworkshop.twitchcraft.twitch.TwitchEvent;
 import dev.dedworkshop.twitchcraft.ui.TwitchChatRenderer;
+import dev.dedworkshop.twitchcraft.ui.ChatSignLayout;
+import dev.dedworkshop.twitchcraft.ui.WorldProjection;
 import dev.dedworkshop.twitchcraft.vk.VkEvents;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ToIntFunction;
 
 /** Логические тесты без запуска Minecraft. */
 public class LogicTest {
@@ -524,7 +528,7 @@ public class LogicTest {
                 + "\"follow\":{\"message\":\"&d{user} follows\"},\"rewards\":{\"Зомби\":{\"commands\":[\"summon zombie\"]}}}";
         ModConfig mig = ModConfig.fromJson(v2);
         boolean changed = mig.upgradeFrom(v2);
-        check("v2 upgraded (to current version)", changed && mig.configVersion == 10 && mig.donationTiers.size() == 51 && !mig.fundraisers.isEmpty());
+        check("v2 upgraded (to current version)", changed && mig.configVersion == 11 && mig.donationTiers.size() == 51 && !mig.fundraisers.isEmpty());
         check("v2 enabled flags -> modules", !mig.isEnabled(Module.TWITCH_CHAT) && mig.isEnabled(Module.OVERLAY) && mig.isEnabled(Module.FOLLOWS));
         check("v2 follow gets loot + {loot} in message", mig.follow.loot != null && !mig.follow.loot.isEmpty() && mig.follow.message.contains("{loot}") && mig.follow.message.startsWith("&d{user} follows"));
         check("v2 user data preserved", mig.clientId.equals("abc") && mig.twitchChat.prefix.equals("[T] ") && mig.overlay.corner.equals("top-right")
@@ -801,7 +805,7 @@ public class LogicTest {
         String v3cfg = "{\"configVersion\":3,\"clientId\":\"abc\",\"modules\":{\"overlay\":false},\"follow\":{\"message\":\"hi\"},\"goals\":[{\"name\":\"Мои\",\"type\":\"follows\",\"target\":5}]}";
         ModConfig m4 = ModConfig.fromJson(v3cfg);
         boolean up4 = m4.upgradeFrom(v3cfg);
-        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 10 && m4.donations != null && m4.donationTiers.size() == 51 && m4.donationAlertsTiers.isEmpty());
+        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 11 && m4.donations != null && m4.donationTiers.size() == 51 && m4.donationAlertsTiers.isEmpty());
         check("v3 user data preserved + donation goal appended", m4.clientId.equals("abc") && !m4.isEnabled(Module.OVERLAY) && m4.follow.message.startsWith("hi")
                 && m4.goals.size() == 2 && m4.goals.get(0).name.equals("Мои") && "donationSum".equals(m4.goals.get(1).type));
         check("v4 output stable, no warnings", !ModConfig.fromJson(m4.toJson()).upgradeFrom(m4.toJson()) && ModConfig.findWarnings(m4.toJson()).isEmpty()
@@ -810,7 +814,7 @@ public class LogicTest {
         String v4cfg = "{\"configVersion\":4,\"clientId\":\"abc\",\"modules\":{\"goals\":false},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}},\"donations\":{\"currency\":\"USD\"}}";
         ModConfig m5 = ModConfig.fromJson(v4cfg);
         boolean up5 = m5.upgradeFrom(v4cfg);
-        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 10 && m5.fundraisers.size() == 1
+        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 11 && m5.fundraisers.size() == 1
                 && m5.fundraisers.get(0).name.equals("Сбор") && m5.fundraiserSettings != null && m5.chatCommands.containsKey("fund") && m5.chatCommands.containsKey("mine")
                 && m5.clientId.equals("abc") && !m5.isEnabled(Module.GOALS) && m5.isEnabled(Module.FUNDRAISERS) && m5.donations.currency.equals("USD"));
         check("v5 output stable, no warnings", !ModConfig.fromJson(m5.toJson()).upgradeFrom(m5.toJson()) && ModConfig.findWarnings(m5.toJson()).isEmpty());
@@ -894,14 +898,14 @@ public class LogicTest {
                 + "\"2000\":{\"name\":\"В небо\"},\"5000\":{\"name\":\"Легенда\"}},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}}}";
         ModConfig dp5m6 = ModConfig.fromJson(dp5legacy);
         boolean dp5up6 = dp5m6.upgradeFrom(dp5legacy);
-        check("v5 → v6: untouched legacy table replaced by the 51-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 10
+        check("v5 → v6: untouched legacy table replaced by the 51-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 11
                 && dp5m6.donationTiers.size() == 51 && DonationPresets.isBad(dp5m6.donationTiers.get("30")) && dp5m6.chatCommands.containsKey("ценник")
                 && dp5m6.chatCommands.containsKey("плохое") && dp5m6.chatCommands.containsKey("хорошее") && dp5m6.chatCommands.containsKey("mine"));
         check("v6 output stable, no warnings", !ModConfig.fromJson(dp5m6.toJson()).upgradeFrom(dp5m6.toJson()) && ModConfig.findWarnings(dp5m6.toJson()).isEmpty());
         String dp5custom = "{\"configVersion\":5,\"donationTiers\":{\"1\":{\"name\":\"Спасибо\"},\"100\":{\"name\":\"Моё\",\"commands\":[\"say hi\"]}}}";
         ModConfig dp5keep = ModConfig.fromJson(dp5custom);
         boolean dp5upKeep = dp5keep.upgradeFrom(dp5custom);
-        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 10 && dp5keep.donationTiers.size() == 2
+        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 11 && dp5keep.donationTiers.size() == 2
                 && dp5keep.donationTiers.get("100").name.equals("Моё") && dp5keep.chatCommands.containsKey("ценник"));
         String dp5renamed = dp5legacy.replace("\"Салют\"", "\"Мой салют\"");
         ModConfig dp5keep2 = ModConfig.fromJson(dp5renamed);
@@ -913,7 +917,7 @@ public class LogicTest {
         String dp5v6json = dp5v6src.toJson();
         ModConfig dp5v6 = ModConfig.fromJson(dp5v6json);
         check("v6 config with a tiny table and without !ценник: no upgrade, nothing added", !dp5v6.upgradeFrom(dp5v6json)
-                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 10);
+                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 11);
         Map<String, String> dp5vars = Placeholders.of(dp5e30, "Steve");
         dp5vars.putAll(DonationPresets.placeholders(dc.donationTiers));
         dp5vars.put("donation_currency", "₽");
@@ -1304,7 +1308,7 @@ public class LogicTest {
             String m7json = m7src.toJson().replace("\"vk\":", "\"vkOld\":"); // как будто секции vk ещё не было
             ModConfig m7 = ModConfig.fromJson(m7json);
             boolean m7up = m7.upgradeFrom(m7json);
-            check("v6 → v10: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 10", m7up && m7.configVersion == 10
+            check("v6 → v11: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 11", m7up && m7.configVersion == 11
                     && m7.rewards.size() == 3 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*")
                     && m7.vk != null && m7.vk.callbackPort > 0);
             ModConfig m7own = ModConfig.createDefault();
@@ -1631,7 +1635,7 @@ public class LogicTest {
             ModConfig ytConfig = ModConfig.createDefault();
             ytConfig.youtube.callbackPort = ytConfig.vk.callbackPort;
             ytConfig.normalize();
-            check("YouTube config is separate, enabled by default, current version 10, and callback ports stay unique", ytConfig.configVersion == 10
+            check("YouTube config is separate, enabled by default, current version 10, and callback ports stay unique", ytConfig.configVersion == 11
                     && ytConfig.youtube != null && ytConfig.isEnabled(Module.YOUTUBE_LIVE) && ytConfig.youtube.callbackPort != ytConfig.vk.callbackPort
                     && ytConfig.youtube.callbackPort != ytConfig.donations.callbackPort);
             check("YouTube platform prefix and membership wording", ytMember.describe().contains("YouTube")
@@ -1725,7 +1729,7 @@ public class LogicTest {
             String ytOld = ytObj.toString();
             ModConfig ytMig = ModConfig.fromJson(ytOld);
             check("v9 → v10: сохранённые настройки YouTube не трогают, новые появляются значениями по умолчанию", ytMig.upgradeFrom(ytOld)
-                    && ytMig.configVersion == 10 && ytMig.youtube.clientId.equals("old-client") && !ytMig.youtube.showChat
+                    && ytMig.configVersion == 11 && ytMig.youtube.clientId.equals("old-client") && !ytMig.youtube.showChat
                     && ytMig.youtube.chatPrefix.equals("&9[YT]&r ") && ytMig.youtube.pollMaxResults == 2000
                     && ytMig.youtube.quotaBudget == 9000 && ytMig.youtube.quotaGuard && ytMig.youtube.control
                     && !ytMig.youtube.showModeration && ytMig.youtube.defaultTimeoutSeconds == 300
@@ -1750,7 +1754,7 @@ public class LogicTest {
             String m8old = m8obj.toString();
             ModConfig m8 = ModConfig.fromJson(m8old);
             boolean m8up = m8.upgradeFrom(m8old);
-            check("v7 → v10: YouTube and v1.7 sections added, version 10", m8up && m8.configVersion == 10 && m8.youtube != null
+            check("v7 → v10: YouTube and v1.7 sections added, version 10", m8up && m8.configVersion == 11 && m8.youtube != null
                     && m8.gameEvents != null && m8.gameEvents.size() == 6 && m8.gameEventsSettings != null
                     && m8.timers != null && m8.timers.size() == 2 && m8.clips != null && m8.clips.donationFrom == 50);
             check("v7 → v10: chat commands !смерти and !время added; VK port 8632 → 8638", m8.findChatCommand("смерти") != null && m8.findChatCommand("время") != null
@@ -1761,7 +1765,7 @@ public class LogicTest {
             String m8customJson = m8custom.toJson();
             ModConfig m8c = ModConfig.fromJson(m8customJson);
             m8c.upgradeFrom(m8customJson);
-            check("v7 → v10: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 10);
+            check("v7 → v10: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 11);
             String m8stable = m8.toJson();
             check("v8 output stable, no warnings", !ModConfig.fromJson(m8stable).upgradeFrom(m8stable) && ModConfig.findWarnings(m8stable).isEmpty()
                     && ModConfig.createDefault().vk.callbackPort == 8638);
@@ -1777,7 +1781,131 @@ public class LogicTest {
                     && Module.byId("gameEvents") == Module.GAME_EVENTS && Module.byId("chatTimers") == Module.CHAT_TIMERS && Module.byId("clips") == Module.CLIPS);
         }
 
+        testChatSigns();
+
         System.out.println(failures == 0 ? "\nALL " + total + " TESTS PASSED" : "\nFAILURES: " + failures + " of " + total);
         System.exit(failures == 0 ? 0 : 1);
+    }
+
+    /** Таблички чата в воздухе: раскладка текста, проекция, шапка, настройки и миграция v10 → v11. */
+    static void testChatSigns() {
+        System.out.println("== v1.12: таблички чата в воздухе (чистая логика) ==");
+        ToIntFunction<String> m = s -> s.length() * 6; // 6 px на символ
+        check("sign: короткий текст — одна строка", ChatSignLayout.wrap("привет мир", 160, 3, m).equals(List.of("привет мир")));
+        check("sign: пустой и null текст — без строк", ChatSignLayout.wrap("   ", 60, 3, m).isEmpty() && ChatSignLayout.wrap(null, 60, 3, m).isEmpty());
+        List<String> lines = ChatSignLayout.wrap("слово ".repeat(60).trim(), 60, 3, m);
+        check("sign: перенос не шире строки, не больше трёх строк, хвост «…»", lines.size() == 3
+                && lines.stream().allMatch(l -> m.applyAsInt(l) <= 60) && lines.get(2).endsWith("…"));
+        List<String> cut = ChatSignLayout.wrap("abcdefghijklmnopqrstuvwxyzabcdefghijklmn", 60, 3, m);
+        check("sign: слово шире строки режется по символам", cut.size() == 3 && cut.get(0).equals("abcdefghij")
+                && cut.get(1).equals("klmnopqrst") && cut.get(2).endsWith("…"));
+        ChatSignLayout.Layout lay = ChatSignLayout.layout(List.of(new ChatSignLayout.Segment("Ник", 0xFFFFFFFF)), "текст", 0xFFFFFFFF, m);
+        check("sign: табличка = строка шапки + строка текста, с полями", lay.rows().size() == 2
+                && lay.width() == Math.max(m.applyAsInt("Ник"), m.applyAsInt("текст")) + 2 * ChatSignLayout.PAD
+                && lay.height() == 2 * ChatSignLayout.LINE + 2 * ChatSignLayout.PAD - 1);
+        List<ChatSignLayout.Segment> head = List.of(new ChatSignLayout.Segment("[T] ", 1),
+                new ChatSignLayout.Segment("ОченьДлинныйНикЗрителя", 2));
+        List<ChatSignLayout.Segment> fitted = ChatSignLayout.fit(head, 100, m);
+        int fittedWidth = 0;
+        for (ChatSignLayout.Segment seg : fitted) {
+            fittedWidth += m.applyAsInt(seg.text());
+        }
+        ChatSignLayout.Segment lastSeg = fitted.get(fitted.size() - 1);
+        check("sign: шапка сокращается до ширины, ник сохраняет цвет и получает «…»", fittedWidth <= 100
+                && lastSeg.argb() == 2 && lastSeg.text().endsWith("…"));
+        double[] off = ChatSignLayout.stackOffsets(new double[] {17, 17, 30});
+        check("sign: стопка — новая у базы, старые выше", off[0] == 0 && off[1] == 17 + ChatSignLayout.GAP
+                && off[2] == 2 * (17 + ChatSignLayout.GAP));
+        check("sign: затухание — появление, полная видимость, уход за последнюю секунду", ChatSignLayout.alpha(0, 9000, 1000) == 0
+                && ChatSignLayout.alpha(10_000, 9000, 1000) == 255 && ChatSignLayout.alpha(10_000, 500, 1000) == 128
+                && ChatSignLayout.alpha(10_000, 0, 1000) == 0);
+        check("sign: метка платформы без цветовых кодов", ChatSignLayout.plain("§9[VK]§r ").equals("[VK] "));
+        check("sign: клик по табличке — попадание внутрь прямоугольника и на край, мимо — нет",
+                ChatSignLayout.contains(10, 10, 20, 20, 15, 15) && ChatSignLayout.contains(10, 10, 20, 20, 10, 20)
+                        && !ChatSignLayout.contains(10, 10, 20, 20, 21, 15));
+        check("sign: разбить кликом можно табличку в досягаемости (около 6 блоков) и ближе блока или моба; при промахе — любую в досягаемости",
+                ChatSignLayout.BREAK_REACH == 6.0 && ChatSignLayout.breakable(3, Double.POSITIVE_INFINITY)
+                        && ChatSignLayout.breakable(6, Double.POSITIVE_INFINITY) && ChatSignLayout.breakable(3, 3.5)
+                        && !ChatSignLayout.breakable(3, 2) && !ChatSignLayout.breakable(3, 3)
+                        && !ChatSignLayout.breakable(8, Double.POSITIVE_INFINITY));
+
+        // Проекция: точки в центре, справа/сверху, за камерой, взгляд вверх
+        WorldProjection.Screen centre = WorldProjection.project(0, 0, 6, 0, 0, 0, 0, 0, 70, 854, 480);
+        check("projection: точка прямо перед камерой — в центре экрана", centre != null && Math.abs(centre.x() - 427) < 1e-6
+                && Math.abs(centre.y() - 240) < 1e-6 && Math.abs(centre.depth() - 6) < 1e-9);
+        WorldProjection.Screen rightSide = WorldProjection.project(-3, 0, 6, 0, 0, 0, 0, 0, 70, 854, 480);
+        WorldProjection.Screen above = WorldProjection.project(0, 1, 6, 0, 0, 0, 0, 0, 70, 854, 480);
+        check("projection: при взгляде на юг запад справа, выше в мире — выше на экране", rightSide != null && rightSide.x() > 427
+                && above != null && above.y() < 240);
+        WorldProjection.Screen westFacing = WorldProjection.project(-3, 0, -3, 0, 0, 0, 0, 90, 70, 854, 480);
+        check("projection: при взгляде на запад север справа", westFacing != null && westFacing.x() > 427 && westFacing.depth() > 2.9);
+        check("projection: точка за камерой не рисуется", WorldProjection.project(0, 0, -5, 0, 0, 0, 0, 0, 70, 854, 480) == null);
+        WorldProjection.Screen sky = WorldProjection.project(0, 5, 0, 0, 0, 0, -90, 0, 70, 854, 480);
+        check("projection: взгляд строго вверх — точка над головой в центре, без вырождения", sky != null
+                && Math.abs(sky.x() - 427) < 1e-6 && Math.abs(sky.y() - 240) < 1e-6);
+        boolean basisMatchesGame = true;
+        for (float[] a : new float[][] {{0, 0}, {30, 45}, {-60, 120}, {15, -170}, {89, 10}}) {
+            Vec3 g = Vec3.directionFromRotation(a[0], a[1]);
+            double[] f = WorldProjection.forward(a[0], a[1]);
+            double[] r = WorldProjection.right(a[1]);
+            double[] u = WorldProjection.up(a[0], a[1]);
+            double dotFR = f[0] * r[0] + f[1] * r[1] + f[2] * r[2];
+            double dotFU = f[0] * u[0] + f[1] * u[1] + f[2] * u[2];
+            // Vec3.directionFromRotation считает через Mth.sin/cos (таблица, ошибка до ~1e-4), поэтому допуск 1e-3:
+            // ошибка знака или оси даёт около 1, такое расхождение заметно.
+            basisMatchesGame &= Math.abs(g.x - f[0]) < 1e-3 && Math.abs(g.y - f[1]) < 1e-3 && Math.abs(g.z - f[2]) < 1e-3
+                    && Math.abs(dotFR) < 1e-9 && Math.abs(dotFU) < 1e-9;
+        }
+        check("projection: «вперёд» совпадает с Vec3.directionFromRotation, базис ортогонален", basisMatchesGame);
+        check("projection: масштаб 1 на расстоянии 6, крупнее вблизи, мельче вдали, в пределах 0.5–1.6",
+                Math.abs(WorldProjection.scaleFor(6, 6) - 1) < 1e-9 && WorldProjection.scaleFor(3, 6) == 1.6
+                        && WorldProjection.scaleFor(12, 6) == 0.5);
+
+        // Шапка таблички: метка платформы, значки, цвет ника, битсы
+        ModConfig hdr = ModConfig.createDefault();
+        TwitchEvent vkChat = TwitchEvent.simple(TwitchEvent.Type.CHAT, "Зритель", "zritel", 0, "привет", "", "").withPlatform("vk");
+        StringBuilder vkHead = new StringBuilder();
+        for (ChatSignLayout.Segment seg : TwitchChatRenderer.signHeader(hdr, vkChat)) {
+            vkHead.append(seg.text());
+        }
+        check("sign header: VK — метка из префикса VK без цветовых кодов", vkHead.toString().equals("[VK] Зритель"));
+        TwitchEvent twChat = new TwitchEvent(TwitchEvent.Type.CHAT, "Ник", "nik", "1", 100, "hi", "", "", "", "",
+                Set.of("subscriber"), "#1E90FF", "", false);
+        List<ChatSignLayout.Segment> twHead = TwitchChatRenderer.signHeader(hdr, twChat);
+        StringBuilder twText = new StringBuilder();
+        for (ChatSignLayout.Segment seg : twHead) {
+            twText.append(seg.text());
+        }
+        check("sign header: Twitch — [T], значок подписчика, битсы, цвет ника зрителя", twText.toString().equals("[T] ★ Ник [100 битс]")
+                && twHead.get(2).argb() == 0xFF1E90FF);
+
+        // Настройки: значения по умолчанию, пределы, JSON и миграция v10 → v11
+        ModConfig cs = ModConfig.createDefault();
+        check("chat signs: по умолчанию включены, строка в чате остаётся, 10 с, 5 сразу, 6 блоков, 100 %, версия 11",
+                cs.chatSigns.enabled && cs.chatSigns.keepInChat && cs.chatSigns.seconds == 10 && cs.chatSigns.maxVisible == 5
+                        && cs.chatSigns.distance == 6 && cs.chatSigns.scale == 100 && cs.configVersion == 11);
+        cs.chatSigns.enabled = false;
+        cs.chatSigns.keepInChat = false;
+        cs.chatSigns.seconds = 999;
+        cs.chatSigns.maxVisible = 0;
+        cs.chatSigns.distance = 100;
+        cs.chatSigns.scale = 1;
+        cs.normalize();
+        check("chat signs: normalize зажимает значения в допустимых пределах", cs.chatSigns.seconds == 120 && cs.chatSigns.maxVisible == 1
+                && cs.chatSigns.distance == 30 && cs.chatSigns.scale == 25);
+        ModConfig csBack = ModConfig.fromJson(cs.toJson());
+        check("chat signs: переживают JSON-раундтрип без предупреждений", !csBack.chatSigns.enabled && !csBack.chatSigns.keepInChat
+                && csBack.chatSigns.seconds == 120 && ModConfig.findWarnings(cs.toJson()).isEmpty());
+        String v10 = "{\"configVersion\":10,\"clientId\":\"abc\",\"twitchChat\":{\"prefix\":\"[T] \"}}";
+        ModConfig up11 = ModConfig.fromJson(v10);
+        boolean changed11 = up11.upgradeFrom(v10);
+        check("v10 → v11: раздел chatSigns появляется по умолчанию, свои поля сохранены", changed11 && up11.configVersion == 11
+                && up11.chatSigns.enabled && up11.clientId.equals("abc") && up11.twitchChat.prefix.equals("[T] "));
+        String stable11 = up11.toJson();
+        check("v11 output stable, no warnings", !ModConfig.fromJson(stable11).upgradeFrom(stable11) && ModConfig.findWarnings(stable11).isEmpty());
+        String custom11 = "{\"configVersion\":11,\"chatSigns\":{\"enabled\":false,\"seconds\":3}}";
+        ModConfig cust = ModConfig.fromJson(custom11);
+        cust.upgradeFrom(custom11);
+        check("v11: свои значения chatSigns не перетираются миграцией", !cust.chatSigns.enabled && cust.chatSigns.seconds == 3);
     }
 }

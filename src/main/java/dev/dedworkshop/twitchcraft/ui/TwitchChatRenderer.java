@@ -8,28 +8,40 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Показывает сообщение чата Twitch в чате Minecraft:
- *   [T] ♛ Ник: текст
+ * Показывает сообщение чата Twitch, VK и YouTube:
+ *   • табличкой в воздухе перед игроком (если включено в «Таблички в воздухе»);
+ *   • строкой в чате Minecraft:  [T] ♛ Ник: текст — или только табличкой, если строку отключили.
  * Ник окрашен в цвет, выбранный зрителем на Twitch.
  */
 public final class TwitchChatRenderer {
+	/** Цвета шапки и текста таблички (ARGB). Совпадают с цветами строки чата. */
+	private static final int SIGN_TAG = 0xFFAAAAAA;
+	private static final int SIGN_BADGES = 0xFFFFAA00;
+	private static final int SIGN_NAME = 0xFFFF55FF;
+	private static final int SIGN_BITS = 0xFF55FFFF;
+	private static final int SIGN_TEXT = 0xFFFFFFFF;
+
 	private TwitchChatRenderer() {
 	}
 
+	/** Показывает сообщение: табличку в воздухе и/или строку в чате. Вызывается в основном потоке игры. */
 	public static void show(ModConfig config, TwitchEvent event) {
-		Chat.send(build(config, event));
+		ModConfig.ChatSignSettings signs = config.chatSigns;
+		boolean inAir = signs != null && signs.enabled
+				&& ChatSigns.instance().add(signs, signHeader(config, event), messageText(event), SIGN_TEXT);
+		// Строка в чате нужна, если табличек нет, или если её попросили оставить; без игрока табличка не встанет — выводим строкой
+		if (!inAir || signs.keepInChat) {
+			Chat.send(build(config, event));
+		}
 	}
 
 	public static MutableComponent build(ModConfig config, TwitchEvent event) {
-		String prefix = event.isYoutube()
-				? (config.youtube == null || config.youtube.chatPrefix == null ? "" : Chat.colorize(config.youtube.chatPrefix))
-				: event.isVk()
-					? (config.vk == null || config.vk.chatPrefix == null ? "" : Chat.colorize(config.vk.chatPrefix))
-					: (config.twitchChat.prefix == null ? "" : Chat.colorize(config.twitchChat.prefix));
-		MutableComponent line = Component.literal(prefix);
+		MutableComponent line = Component.literal(prefixFor(config, event));
 
 		if (config.twitchChat.showBadges) {
 			String glyphs = badges(event.badges());
@@ -50,13 +62,55 @@ public final class TwitchChatRenderer {
 		}
 		line.append(name);
 
-		String text = event.message() == null ? "" : event.message().replace("§", "");
 		if (event.amount() > 0) {
 			line.append(Component.literal(" [" + event.amount() + " битс]").withStyle(ChatFormatting.AQUA));
 		}
 		line.append(Component.literal(": ").withStyle(ChatFormatting.GRAY));
-		line.append(Component.literal(text).withStyle(ChatFormatting.WHITE));
+		line.append(Component.literal(messageText(event)).withStyle(ChatFormatting.WHITE));
 		return line;
+	}
+
+	/** Префикс платформы из настроек: [T], [VK] или [YT] (с §-цветами). */
+	public static String prefixFor(ModConfig config, TwitchEvent event) {
+		if (event.isYoutube()) {
+			return config.youtube == null || config.youtube.chatPrefix == null ? "" : Chat.colorize(config.youtube.chatPrefix);
+		}
+		if (event.isVk()) {
+			return config.vk == null || config.vk.chatPrefix == null ? "" : Chat.colorize(config.vk.chatPrefix);
+		}
+		return config.twitchChat.prefix == null ? "" : Chat.colorize(config.twitchChat.prefix);
+	}
+
+	/** Текст сообщения без §-кодов, как в строке чата. */
+	public static String messageText(TwitchEvent event) {
+		return event.message() == null ? "" : event.message().replace("§", "");
+	}
+
+	/**
+	 * Шапка таблички: метка платформы, [канал] для Shared Chat, значки, ник цветом зрителя и битсы.
+	 * Текст сообщения табличка выводит отдельными строками.
+	 */
+	public static List<ChatSignLayout.Segment> signHeader(ModConfig config, TwitchEvent event) {
+		List<ChatSignLayout.Segment> head = new ArrayList<>();
+		String tag = ChatSignLayout.plain(prefixFor(config, event)).trim();
+		if (!tag.isEmpty()) {
+			head.add(new ChatSignLayout.Segment(tag + " ", SIGN_TAG));
+		}
+		if (event.isShared()) {
+			head.add(new ChatSignLayout.Segment("[" + event.sharedFrom() + "] ", SIGN_TAG));
+		}
+		if (config.twitchChat.showBadges) {
+			String glyphs = badges(event.badges());
+			if (!glyphs.isEmpty()) {
+				head.add(new ChatSignLayout.Segment(glyphs + " ", SIGN_BADGES));
+			}
+		}
+		int rgb = parseColor(event.color());
+		head.add(new ChatSignLayout.Segment(event.user() == null ? "" : event.user(), rgb >= 0 ? (0xFF000000 | rgb) : SIGN_NAME));
+		if (event.amount() > 0) {
+			head.add(new ChatSignLayout.Segment(" [" + event.amount() + " битс]", SIGN_BITS));
+		}
+		return head;
 	}
 
 	/** Значки: ♛ стример, ⚔ модератор, ◆ VIP, ★ подписчик. */
