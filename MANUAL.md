@@ -2081,4 +2081,4 @@ YouTube в чате игры (`showModeration`) выключен, тайм-ау�
 
 ---
 
-*TwitchCraft 1.11.0 · Minecraft 26.3 · Fabric · Twitch, VK Video Live и YouTube Live. Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, история версий — `CHANGELOG.md`, отчёты аудитов — `AUDIT.md`.*
+*TwitchCraft 1.12.0 · Minecraft 26.3 · Fabric · Twitch, VK Video Live и YouTube Live. Аддон «Артефакты» — отдельный файл `artifact-addon-1.0.0.jar`. Короткая справка — `README.md`, история версий — `CHANGELOG.md`, отчёты аудитов — `AUDIT.md`.*
