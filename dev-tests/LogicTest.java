@@ -528,7 +528,7 @@ public class LogicTest {
                 + "\"follow\":{\"message\":\"&d{user} follows\"},\"rewards\":{\"Зомби\":{\"commands\":[\"summon zombie\"]}}}";
         ModConfig mig = ModConfig.fromJson(v2);
         boolean changed = mig.upgradeFrom(v2);
-        check("v2 upgraded (to current version)", changed && mig.configVersion == 11 && mig.donationTiers.size() == 51 && !mig.fundraisers.isEmpty());
+        check("v2 upgraded (to current version)", changed && mig.configVersion == 13 && mig.donationTiers.size() == 81 && !mig.fundraisers.isEmpty());
         check("v2 enabled flags -> modules", !mig.isEnabled(Module.TWITCH_CHAT) && mig.isEnabled(Module.OVERLAY) && mig.isEnabled(Module.FOLLOWS));
         check("v2 follow gets loot + {loot} in message", mig.follow.loot != null && !mig.follow.loot.isEmpty() && mig.follow.message.contains("{loot}") && mig.follow.message.startsWith("&d{user} follows"));
         check("v2 user data preserved", mig.clientId.equals("abc") && mig.twitchChat.prefix.equals("[T] ") && mig.overlay.corner.equals("top-right")
@@ -759,13 +759,13 @@ public class LogicTest {
         ModConfig dc = ModConfig.createDefault();
         TwitchEvent don500 = TwitchEvent.donation(TwitchEvent.SOURCE_DONATION_ALERTS, "D", 500, "RUB", "msg", "1", false);
         TwitchEvent don499dp = TwitchEvent.donation(TwitchEvent.SOURCE_DONATE_PAY, "D", 499, "RUB", "msg", "2", false);
-        check("default: 51 donation tiers, settings", dc.donationTiers.size() == 51 && dc.donations.currency.equals("RUB") && dc.donations.minAmount == 1
+        check("default: 81 donation tiers, settings", dc.donationTiers.size() == 81 && dc.donations.currency.equals("RUB") && dc.donations.minAmount == 1
                 && dc.donations.donatePayPollSeconds == 20 && dc.donations.callbackPort == 8631 && dc.donationTiers.values().stream().allMatch(a -> a.enabled));
         check("tier 500 -> '500', key donation:500", dc.findAction(don500).action() == dc.donationTiers.get("500") && dc.findAction(don500).key().equals("donation:500"));
         check("tier 499 (DonatePay) -> '450'", dc.findAction(don499dp).action() == dc.donationTiers.get("450"));
         check("tier 1 -> '1'; 0 -> null", dc.findAction(TwitchEvent.donation("test", "D", 1, "RUB", "", "", true)).action() == dc.donationTiers.get("1")
                 && dc.findAction(TwitchEvent.donation("test", "D", 0, "RUB", "", "", true)) == null);
-        check("tier 999999 -> '5000'", dc.findAction(TwitchEvent.donation("test", "D", 999999, "RUB", "", "", true)).action() == dc.donationTiers.get("5000"));
+        check("tier 999999 -> '12750' (top of the ladder)", dc.findAction(TwitchEvent.donation("test", "D", 999999, "RUB", "", "", true)).action() == dc.donationTiers.get("12750"));
         ModConfig.Action onlyDa = new ModConfig.Action("DA only", "", "");
         dc.donationAlertsTiers.put("1", onlyDa);
         check("service table wins entirely for its service", dc.findAction(don500).action() == onlyDa && dc.findAction(don500).key().equals("donation:donationalerts:1")
@@ -805,7 +805,7 @@ public class LogicTest {
         String v3cfg = "{\"configVersion\":3,\"clientId\":\"abc\",\"modules\":{\"overlay\":false},\"follow\":{\"message\":\"hi\"},\"goals\":[{\"name\":\"Мои\",\"type\":\"follows\",\"target\":5}]}";
         ModConfig m4 = ModConfig.fromJson(v3cfg);
         boolean up4 = m4.upgradeFrom(v3cfg);
-        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 11 && m4.donations != null && m4.donationTiers.size() == 51 && m4.donationAlertsTiers.isEmpty());
+        check("v3 upgraded to v4 (and on to v7)", up4 && m4.configVersion == 13 && m4.donations != null && m4.donationTiers.size() == 81 && m4.donationAlertsTiers.isEmpty());
         check("v3 user data preserved + donation goal appended", m4.clientId.equals("abc") && !m4.isEnabled(Module.OVERLAY) && m4.follow.message.startsWith("hi")
                 && m4.goals.size() == 2 && m4.goals.get(0).name.equals("Мои") && "donationSum".equals(m4.goals.get(1).type));
         check("v4 output stable, no warnings", !ModConfig.fromJson(m4.toJson()).upgradeFrom(m4.toJson()) && ModConfig.findWarnings(m4.toJson()).isEmpty()
@@ -814,7 +814,7 @@ public class LogicTest {
         String v4cfg = "{\"configVersion\":4,\"clientId\":\"abc\",\"modules\":{\"goals\":false},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}},\"donations\":{\"currency\":\"USD\"}}";
         ModConfig m5 = ModConfig.fromJson(v4cfg);
         boolean up5 = m5.upgradeFrom(v4cfg);
-        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 11 && m5.fundraisers.size() == 1
+        check("v4 upgraded to v5: fundraisers + settings + fund command added, user data kept", up5 && m5.configVersion == 13 && m5.fundraisers.size() == 1
                 && m5.fundraisers.get(0).name.equals("Сбор") && m5.fundraiserSettings != null && m5.chatCommands.containsKey("fund") && m5.chatCommands.containsKey("mine")
                 && m5.clientId.equals("abc") && !m5.isEnabled(Module.GOALS) && m5.isEnabled(Module.FUNDRAISERS) && m5.donations.currency.equals("USD"));
         check("v5 output stable, no warnings", !ModConfig.fromJson(m5.toJson()).upgradeFrom(m5.toJson()) && ModConfig.findWarnings(m5.toJson()).isEmpty());
@@ -840,7 +840,7 @@ public class LogicTest {
                 dp5keysOk = false;
                 continue;
             }
-            if (!dp5seen.add(e5.getKey()) || key5 < 1 || key5 > 5000) dp5keysOk = false;
+            if (!dp5seen.add(e5.getKey()) || key5 < 1 || key5 > 12750) dp5keysOk = false;
             if (key5 <= dp5prev) dp5sorted = false;
             dp5prev = key5;
             ModConfig.Action a5 = e5.getValue();
@@ -862,8 +862,8 @@ public class LogicTest {
                 if (dc.isCommandBlocked(c5)) dp5blocked = true;
             }
         }
-        check("preset: 51 tiers = 25 ☠ + 25 ★ + 1 neutral", dp5.size() == 51 && dp5bad == 25 && dp5good == 25 && dp5other == 1);
-        check("preset: numeric distinct keys 1..5000, sorted ascending", dp5keysOk && dp5sorted && dp5.containsKey("30") && dp5.containsKey("5000") && dp5.containsKey("1"));
+        check("preset: 81 tiers = 40 ☠ + 40 ★ + 1 neutral (25 + 15 extreme of each)", dp5.size() == 81 && dp5bad == 40 && dp5good == 40 && dp5other == 1);
+        check("preset: numeric distinct keys 1..12750, sorted ascending", dp5keysOk && dp5sorted && dp5.containsKey("30") && dp5.containsKey("5000") && dp5.containsKey("1") && dp5.containsKey("12750"));
         check("preset: every action has name/title/commands, message with {user}+{sum}, enabled, no cost", dp5content && dp5msg);
         check("preset: commands balanced {}/[]/quotes, no leading slash", dp5balanced);
         check("preset: command roots ⊆ known set, none blocked by default blockedCommands", dp5roots && !dp5blocked);
@@ -871,8 +871,8 @@ public class LogicTest {
         TwitchEvent dp5e29 = TwitchEvent.donation("test", "D", 29, "RUB", "", "a", true);
         TwitchEvent dp5e30 = TwitchEvent.donation("test", "D", 30, "RUB", "", "b", true);
         TwitchEvent dp5e45 = TwitchEvent.donation("test", "D", 45, "RUB", "", "c", true);
-        TwitchEvent dp5e9999 = TwitchEvent.donation("test", "D", 9999, "RUB", "", "d", true);
-        check("preset: resolution 29→1, 30→30, 45→40 (key donation:40), 9999→5000", dc.findAction(dp5e29).action() == dc.donationTiers.get("1")
+        TwitchEvent dp5e9999 = TwitchEvent.donation("test", "D", 5400, "RUB", "", "d", true);
+        check("preset: resolution 29→1, 30→30, 45→40 (key donation:40), 5400→5000", dc.findAction(dp5e29).action() == dc.donationTiers.get("1")
                 && dc.findAction(dp5e30).action() == dc.donationTiers.get("30") && dc.findAction(dp5e45).action() == dc.donationTiers.get("40")
                 && dc.findAction(dp5e45).key().equals("donation:40") && dc.findAction(dp5e9999).action() == dc.donationTiers.get("5000"));
         check("preset: default config uses the preset (same keys/names)", dc.donationTiers.keySet().equals(dp5.keySet())
@@ -882,7 +882,7 @@ public class LogicTest {
                 && dp5ph.get("donation_prices_good").startsWith("40 Перекус") && dp5ph.get("donation_prices_good").length() <= 450 && dp5ph.get("donation_prices_good").endsWith("5000 Легенда")
                 && dp5ph.get("donation_prices").startsWith("1 Спасибо · 30 ☠ Тыква") && !dp5ph.get("donation_prices_bad").contains("☠"));
         check("preset: priceLines by kind", DonationPresets.priceLines(dc.donationTiers, "₽", 'b').size() == 25 && DonationPresets.priceLines(dc.donationTiers, "₽", 'g').size() == 25
-                && DonationPresets.priceLines(dc.donationTiers, "₽", 'o').size() == 1 && DonationPresets.priceLines(dc.donationTiers, "₽", 'a').size() == 51
+                && DonationPresets.priceLines(dc.donationTiers, "₽", 'o').size() == 1 && DonationPresets.priceLines(dc.donationTiers, "₽", 'a').size() == 81
                 && DonationPresets.priceLines(dc.donationTiers, "₽", 'b').get(0).contains("30 ₽") && DonationPresets.priceLines(null, "₽", 'a').isEmpty());
         ModConfig dp5disabled = ModConfig.createDefault();
         dp5disabled.donationTiers.get("30").enabled = false;
@@ -898,14 +898,14 @@ public class LogicTest {
                 + "\"2000\":{\"name\":\"В небо\"},\"5000\":{\"name\":\"Легенда\"}},\"chatCommands\":{\"mine\":{\"reply\":\"x\"}}}";
         ModConfig dp5m6 = ModConfig.fromJson(dp5legacy);
         boolean dp5up6 = dp5m6.upgradeFrom(dp5legacy);
-        check("v5 → v6: untouched legacy table replaced by the 51-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 11
-                && dp5m6.donationTiers.size() == 51 && DonationPresets.isBad(dp5m6.donationTiers.get("30")) && dp5m6.chatCommands.containsKey("ценник")
+        check("v5 → v6: untouched legacy table replaced by the 81-tier preset, chat commands added, user command kept", dp5up6 && dp5m6.configVersion == 13
+                && dp5m6.donationTiers.size() == 81 && DonationPresets.isBad(dp5m6.donationTiers.get("30")) && dp5m6.chatCommands.containsKey("ценник")
                 && dp5m6.chatCommands.containsKey("плохое") && dp5m6.chatCommands.containsKey("хорошее") && dp5m6.chatCommands.containsKey("mine"));
         check("v6 output stable, no warnings", !ModConfig.fromJson(dp5m6.toJson()).upgradeFrom(dp5m6.toJson()) && ModConfig.findWarnings(dp5m6.toJson()).isEmpty());
         String dp5custom = "{\"configVersion\":5,\"donationTiers\":{\"1\":{\"name\":\"Спасибо\"},\"100\":{\"name\":\"Моё\",\"commands\":[\"say hi\"]}}}";
         ModConfig dp5keep = ModConfig.fromJson(dp5custom);
         boolean dp5upKeep = dp5keep.upgradeFrom(dp5custom);
-        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 11 && dp5keep.donationTiers.size() == 2
+        check("v5 → v6: customised table is NOT overwritten (only version + chat commands)", dp5upKeep && dp5keep.configVersion == 13 && dp5keep.donationTiers.size() == 2
                 && dp5keep.donationTiers.get("100").name.equals("Моё") && dp5keep.chatCommands.containsKey("ценник"));
         String dp5renamed = dp5legacy.replace("\"Салют\"", "\"Мой салют\"");
         ModConfig dp5keep2 = ModConfig.fromJson(dp5renamed);
@@ -917,7 +917,7 @@ public class LogicTest {
         String dp5v6json = dp5v6src.toJson();
         ModConfig dp5v6 = ModConfig.fromJson(dp5v6json);
         check("v6 config with a tiny table and without !ценник: no upgrade, nothing added", !dp5v6.upgradeFrom(dp5v6json)
-                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 11);
+                && dp5v6.donationTiers.size() == 1 && !dp5v6.chatCommands.containsKey("ценник") && dp5v6.configVersion == 13);
         Map<String, String> dp5vars = Placeholders.of(dp5e30, "Steve");
         dp5vars.putAll(DonationPresets.placeholders(dc.donationTiers));
         dp5vars.put("donation_currency", "₽");
@@ -1217,11 +1217,103 @@ public class LogicTest {
             check("callback server tests threw " + e, false);
         }
 
+        System.out.println("== v1.13: сверхсобытия (☠ 5500 … ★ 12750) и награды «Катастрофа» / «Чудо» (500 баллов) ==");
+        {
+            ModConfig x13 = ModConfig.createDefault();
+            long x13ext = x13.donationTiers.values().stream().filter(a -> a.extreme).count();
+            long x13extBad = x13.donationTiers.values().stream().filter(a -> a.extreme && DonationPresets.isBad(a)).count();
+            long x13extGood = x13.donationTiers.values().stream().filter(a -> a.extreme && DonationPresets.isGood(a)).count();
+            check("extreme: 30 сверхсобытий = 15 ☠ + 15 ★, ключи 5500 ☠, 5750 ★ … 12750 ★",
+                    x13ext == 30 && x13extBad == 15 && x13extGood == 15 && DonationPresets.isBad(x13.donationTiers.get("5500"))
+                    && DonationPresets.isGood(x13.donationTiers.get("5750")) && DonationPresets.isBad(x13.donationTiers.get("12500"))
+                    && DonationPresets.isGood(x13.donationTiers.get("12750")) && x13.donationTiers.get("12750").extreme);
+            check("extreme: ordinary tiers (≤ 5000) are not extreme, ladder step is 250 ₽", x13.donationTiers.entrySet().stream()
+                    .allMatch(e -> Integer.parseInt(e.getKey()) <= 5000 || e.getValue().extreme)
+                    && x13.donationTiers.keySet().stream().filter(k -> Integer.parseInt(k) >= 5500).map(Integer::parseInt).sorted()
+                    .reduce((p, q) -> q - p == 250 ? q : -1).orElse(-1) == 12750);
+            check("extreme: every entry is enabled, has a name, a {user} message and commands", x13.donationTiers.values().stream()
+                    .filter(a -> a.extreme).allMatch(a -> a.enabled && a.name != null && a.message.contains("{user}") && !a.commands.isEmpty()));
+            check("extreme: the 30 entries use only known command roots", x13.donationTiers.values().stream().filter(a -> a.extreme)
+                    .flatMap(a -> a.commands.stream()).map(c -> c.trim().split("\\s+", 2)[0]).allMatch(
+                            r -> Set.of("give", "effect", "summon", "time", "weather", "xp", "particle", "delay").contains(r)));
+            check("extreme: resolution 5600 → 5500, 5800 → 5750, 25000 → 12750",
+                    x13.findAction(TwitchEvent.donation("test", "D", 5600, "RUB", "", "a", true)).action() == x13.donationTiers.get("5500")
+                    && x13.findAction(TwitchEvent.donation("test", "D", 5800, "RUB", "", "b", true)).action() == x13.donationTiers.get("5750")
+                    && x13.findAction(TwitchEvent.donation("test", "D", 25000, "RUB", "", "c", true)).action() == x13.donationTiers.get("12750"));
+            check("extreme: ordinary pools skip extreme entries (25 ☠ / 25 ★ / 50 any)", DonationPresets.poolCandidates(x13.donationTiers, "bad").size() == 25
+                    && DonationPresets.poolCandidates(x13.donationTiers, "good").size() == 25 && DonationPresets.poolCandidates(x13.donationTiers, "any").size() == 50);
+            List<ModConfig.Action> x13bad = DonationPresets.poolCandidates(x13.donationTiers, "xbad");
+            List<ModConfig.Action> x13good = DonationPresets.poolCandidates(x13.donationTiers, "xgood");
+            check("extreme pools: xbad = 15 ☠ сверх, xgood = 15 ★ сверх", x13bad.size() == 15 && x13good.size() == 15
+                    && x13bad.stream().allMatch(a -> DonationPresets.isBad(a) && a.extreme) && x13good.stream().allMatch(a -> DonationPresets.isGood(a) && a.extreme));
+            java.util.Random x13rnd = new java.util.Random(7);
+            boolean x13pick = true;
+            for (int i = 0; i < 500; i++) {
+                ModConfig.Action pk = DonationPresets.pick(x13.donationTiers, "xgood", x13rnd);
+                if (pk == null || !pk.extreme || !DonationPresets.isGood(pk)) {
+                    x13pick = false;
+                }
+            }
+            check("extreme pick: xgood always returns a ★ сверхсобытие", x13pick);
+            check("extreme pool normalised: ' XBAD ' → xbad, xgood kept, junk dropped",
+                    normalisedPool(" XBAD ").equals("xbad") && normalisedPool("xgood").equals("xgood") && normalisedPool("xwat").isEmpty());
+            Map<String, String> x13ph = DonationPresets.placeholders(x13.donationTiers);
+            check("extreme placeholders: donation_prices_max lists the 30; chat ☠/★ lists stay short and without them",
+                    x13ph.get("donation_prices_max").startsWith("5500 ☠ Дракон") && x13ph.get("donation_prices_max").contains("12750 ★ Вечность")
+                    && x13ph.get("donation_prices_bad").length() <= 450 && x13ph.get("donation_prices_good").length() <= 450
+                    && !x13ph.get("donation_prices_bad").contains("Дракон") && !x13ph.get("donation_prices_good").contains("Вечность"));
+            check("rewards: «Катастрофа» (xbad) и «Чудо» (xgood) по 500 баллов; «Пакость» и «Подарок» по 250",
+                    x13.rewards.get("Катастрофа").pool.equals("xbad") && x13.rewards.get("Катастрофа").cost == 500
+                    && x13.rewards.get("Чудо").pool.equals("xgood") && x13.rewards.get("Чудо").cost == 500
+                    && x13.rewards.get("Пакость").cost == 250 && x13.rewards.get("Подарок").cost == 250);
+            check("legacy v12 map: 30 old names, keys 6000 … 20500", DonationPresets.legacyV12Extremes().size() == 30
+                    && DonationPresets.legacyV12Extremes().get("6000").equals("☠ Дракон") && DonationPresets.legacyV12Extremes().get("20500").equals("★ Вечность"));
+
+            // v11 (без сверхсобытий) → v13
+            ModConfig x13v11 = ModConfig.createDefault();
+            x13v11.donationTiers.entrySet().removeIf(e -> e.getValue().extreme);
+            x13v11.rewards.remove("Катастрофа");
+            x13v11.rewards.remove("Чудо");
+            x13v11.donationTiers.put("6000", new ModConfig.Action("свой донат {sum}", "", ""));
+            x13v11.configVersion = 11;
+            String x13json = x13v11.toJson();
+            ModConfig x13m = ModConfig.fromJson(x13json);
+            boolean x13up = x13m.upgradeFrom(x13json);
+            check("v11 → v13: новые сверхсобытия и награды добавлены, своя запись 6000 сохранена", x13up && x13m.configVersion == 13
+                    && x13m.donationTiers.size() == 81 && x13m.donationTiers.get("6000").message.equals("свой донат {sum}") && !x13m.donationTiers.get("6000").extreme
+                    && x13m.donationTiers.get("5750").extreme && x13m.rewards.get("Катастрофа").cost == 500 && x13m.rewards.containsKey("Чудо"));
+
+            // v12 (старые 6000–20500 и цена 1000) → v13
+            ModConfig x13o = ModConfig.createDefault();
+            x13o.donationTiers.entrySet().removeIf(e -> e.getValue().extreme);
+            for (Map.Entry<String, String> old : DonationPresets.legacyV12Extremes().entrySet()) {
+                ModConfig.Action oa = new ModConfig.Action("x", "", "");
+                oa.name = old.getValue();
+                oa.extreme = true;
+                x13o.donationTiers.put(old.getKey(), oa);
+            }
+            x13o.rewards.get("Катастрофа").cost = 1000;
+            x13o.rewards.get("Чудо").cost = 1000;
+            x13o.donationTiers.get("7000").name = "Мой гигант";
+            x13o.configVersion = 12;
+            String x13oj = x13o.toJson();
+            ModConfig x13om = ModConfig.fromJson(x13oj);
+            boolean x13oup = x13om.upgradeFrom(x13oj);
+            check("v12 → v13: нетронутые старые сверхсобытия заменены, своя правка («Мой гигант» на 7000) сохранена", x13oup
+                    && x13om.configVersion == 13 && x13om.donationTiers.get("5500").name.equals("☠ Дракон")
+                    && x13om.donationTiers.get("7000").name.equals("Мой гигант") && x13om.donationTiers.get("6000").name.equals("☠ Гигант")
+                    && x13om.donationTiers.get("6000").extreme && x13om.donationTiers.get("12750").extreme);
+            check("v12 → v13: «Катастрофа» и «Чудо» 1000 → 500, сверхсобытий ровно 30 (одна правка не дублируется)",
+                    x13om.rewards.get("Катастрофа").cost == 500 && x13om.rewards.get("Чудо").cost == 500
+                    && x13om.donationTiers.values().stream().filter(a -> a.extreme).count() == 30 && x13om.donationTiers.size() == 81);
+            check("v13 output stable (a second upgrade changes nothing)", !ModConfig.fromJson(x13om.toJson()).upgradeFrom(x13om.toJson()));
+        }
+
         System.out.println("== v1.6: две случайные награды (pool) ==");
         {
             ModConfig p6 = ModConfig.createDefault();
-            check("defaults: only Пакость + Подарок (+ fallback *), 250 points each",
-                    p6.rewards.size() == 3 && p6.rewards.containsKey(DonationPresets.REWARD_BAD) && p6.rewards.containsKey(DonationPresets.REWARD_GOOD)
+            check("defaults: Пакость + Подарок (250), Катастрофа + Чудо (1000), fallback *",
+                    p6.rewards.size() == 5 && p6.rewards.containsKey(DonationPresets.REWARD_BAD) && p6.rewards.containsKey(DonationPresets.REWARD_GOOD)
                     && p6.rewards.containsKey("*") && p6.rewards.get("Пакость").cost == 250 && p6.rewards.get("Подарок").cost == 250
                     && p6.rewards.get("Пакость").pool.equals("bad") && p6.rewards.get("Подарок").pool.equals("good")
                     && p6.rewards.keySet().iterator().next().equals("Пакость"));
@@ -1308,8 +1400,8 @@ public class LogicTest {
             String m7json = m7src.toJson().replace("\"vk\":", "\"vkOld\":"); // как будто секции vk ещё не было
             ModConfig m7 = ModConfig.fromJson(m7json);
             boolean m7up = m7.upgradeFrom(m7json);
-            check("v6 → v11: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 11", m7up && m7.configVersion == 11
-                    && m7.rewards.size() == 3 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*")
+            check("v6 → v11: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 11", m7up && m7.configVersion == 13
+                    && m7.rewards.size() == 5 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*") && m7.rewards.containsKey("Катастрофа")
                     && m7.vk != null && m7.vk.callbackPort > 0);
             ModConfig m7own = ModConfig.createDefault();
             m7own.configVersion = 6;
@@ -1319,7 +1411,7 @@ public class LogicTest {
             String m7ownJson = m7own.toJson();
             ModConfig m7kept = ModConfig.fromJson(m7ownJson);
             boolean m7keptUp = m7kept.upgradeFrom(m7ownJson);
-            check("v6 → v7: user's rewards kept, only missing «Подарок» added (case-insensitive match for «пакость»)", m7keptUp && m7kept.rewards.size() == 3
+            check("v6 → v7: user's rewards kept, missing defaults added («Подарок», «Катастрофа», «Чудо»; case-insensitive match for «пакость»)", m7keptUp && m7kept.rewards.size() == 5
                     && m7kept.rewards.get("Моя").commands.get(0).equals("say my") && m7kept.rewards.get("пакость").commands.get(0).equals("say custom bad")
                     && m7kept.rewards.containsKey("Подарок") && !m7kept.rewards.containsKey("Пакость"));
             String m7stable = m7kept.toJson();
@@ -1635,7 +1727,7 @@ public class LogicTest {
             ModConfig ytConfig = ModConfig.createDefault();
             ytConfig.youtube.callbackPort = ytConfig.vk.callbackPort;
             ytConfig.normalize();
-            check("YouTube config is separate, enabled by default, current version 10, and callback ports stay unique", ytConfig.configVersion == 11
+            check("YouTube config is separate, enabled by default, current version 10, and callback ports stay unique", ytConfig.configVersion == 13
                     && ytConfig.youtube != null && ytConfig.isEnabled(Module.YOUTUBE_LIVE) && ytConfig.youtube.callbackPort != ytConfig.vk.callbackPort
                     && ytConfig.youtube.callbackPort != ytConfig.donations.callbackPort);
             check("YouTube platform prefix and membership wording", ytMember.describe().contains("YouTube")
@@ -1729,7 +1821,7 @@ public class LogicTest {
             String ytOld = ytObj.toString();
             ModConfig ytMig = ModConfig.fromJson(ytOld);
             check("v9 → v10: сохранённые настройки YouTube не трогают, новые появляются значениями по умолчанию", ytMig.upgradeFrom(ytOld)
-                    && ytMig.configVersion == 11 && ytMig.youtube.clientId.equals("old-client") && !ytMig.youtube.showChat
+                    && ytMig.configVersion == 13 && ytMig.youtube.clientId.equals("old-client") && !ytMig.youtube.showChat
                     && ytMig.youtube.chatPrefix.equals("&9[YT]&r ") && ytMig.youtube.pollMaxResults == 2000
                     && ytMig.youtube.quotaBudget == 9000 && ytMig.youtube.quotaGuard && ytMig.youtube.control
                     && !ytMig.youtube.showModeration && ytMig.youtube.defaultTimeoutSeconds == 300
@@ -1754,7 +1846,7 @@ public class LogicTest {
             String m8old = m8obj.toString();
             ModConfig m8 = ModConfig.fromJson(m8old);
             boolean m8up = m8.upgradeFrom(m8old);
-            check("v7 → v10: YouTube and v1.7 sections added, version 10", m8up && m8.configVersion == 11 && m8.youtube != null
+            check("v7 → v10: YouTube and v1.7 sections added, version 10", m8up && m8.configVersion == 13 && m8.youtube != null
                     && m8.gameEvents != null && m8.gameEvents.size() == 6 && m8.gameEventsSettings != null
                     && m8.timers != null && m8.timers.size() == 2 && m8.clips != null && m8.clips.donationFrom == 50);
             check("v7 → v10: chat commands !смерти and !время added; VK port 8632 → 8638", m8.findChatCommand("смерти") != null && m8.findChatCommand("время") != null
@@ -1765,7 +1857,7 @@ public class LogicTest {
             String m8customJson = m8custom.toJson();
             ModConfig m8c = ModConfig.fromJson(m8customJson);
             m8c.upgradeFrom(m8customJson);
-            check("v7 → v10: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 11);
+            check("v7 → v10: custom VK port is kept", m8c.vk.callbackPort == 5000 && m8c.configVersion == 13);
             String m8stable = m8.toJson();
             check("v8 output stable, no warnings", !ModConfig.fromJson(m8stable).upgradeFrom(m8stable) && ModConfig.findWarnings(m8stable).isEmpty()
                     && ModConfig.createDefault().vk.callbackPort == 8638);
@@ -1883,7 +1975,7 @@ public class LogicTest {
         ModConfig cs = ModConfig.createDefault();
         check("chat signs: по умолчанию включены, строка в чате остаётся, 10 с, 5 сразу, 6 блоков, 100 %, версия 11",
                 cs.chatSigns.enabled && cs.chatSigns.keepInChat && cs.chatSigns.seconds == 10 && cs.chatSigns.maxVisible == 5
-                        && cs.chatSigns.distance == 6 && cs.chatSigns.scale == 100 && cs.configVersion == 11);
+                        && cs.chatSigns.distance == 6 && cs.chatSigns.scale == 100 && cs.configVersion == 13);
         cs.chatSigns.enabled = false;
         cs.chatSigns.keepInChat = false;
         cs.chatSigns.seconds = 999;
@@ -1899,7 +1991,7 @@ public class LogicTest {
         String v10 = "{\"configVersion\":10,\"clientId\":\"abc\",\"twitchChat\":{\"prefix\":\"[T] \"}}";
         ModConfig up11 = ModConfig.fromJson(v10);
         boolean changed11 = up11.upgradeFrom(v10);
-        check("v10 → v11: раздел chatSigns появляется по умолчанию, свои поля сохранены", changed11 && up11.configVersion == 11
+        check("v10 → v11: раздел chatSigns появляется по умолчанию, свои поля сохранены", changed11 && up11.configVersion == 13
                 && up11.chatSigns.enabled && up11.clientId.equals("abc") && up11.twitchChat.prefix.equals("[T] "));
         String stable11 = up11.toJson();
         check("v11 output stable, no warnings", !ModConfig.fromJson(stable11).upgradeFrom(stable11) && ModConfig.findWarnings(stable11).isEmpty());

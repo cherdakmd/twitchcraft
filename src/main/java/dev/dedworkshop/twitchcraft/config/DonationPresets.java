@@ -10,10 +10,13 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Готовый ценник донатов: 25 негативных (☠) и 25 позитивных (★) событий по сумме + «Спасибо» за мелочь.
+ * Готовый ценник донатов: 25 негативных (☠) и 25 позитивных (★) событий по сумме + «Спасибо» за мелочь,
+ * а сверху — 30 сверхсобытий (от 5500): 15 очень плохих ☠ и 15 очень хороших ★ (флаг {@code extreme}).
  * Ключ таблицы — «от скольки»: срабатывает самый большой порог, не превышающий сумму доната.
  * Плохие и хорошие суммы чередуются: ☠ 30, ★ 40, ☠ 50, ★ 60 … Популярные круглые суммы
  * (100, 200, 300, 500, 1000, 2000, 5000) — хорошие, чтобы донат «без чтения ценника» помогал стримеру.
+ * Сверхсобытия идут после 5000 с шагом 250 ₽: ☠ 5500, ★ 5750, ☠ 6000 … ★ 12750.
+ * Награды «Катастрофа» (pool = xbad) и «Чудо» (pool = xgood) выбирают только из сверхсобытий.
  *
  * Все команды проверены по именам предметов, мобов, эффектов, звуков, NBT-ключей и компонентов Minecraft 26.3.
  */
@@ -33,7 +36,7 @@ public final class DonationPresets {
 	private DonationPresets() {
 	}
 
-	/** Полный ценник по умолчанию (51 запись), отсортированный по сумме. */
+	/** Полный ценник по умолчанию (81 запись), отсортированный по сумме. */
 	public static Map<String, Action> defaults() {
 		TreeMap<Integer, Action> t = new TreeMap<>();
 
@@ -327,6 +330,178 @@ public final class DonationPresets {
 			a.reply = "{user}, ты ЛЕГЕНДА стрима — спасибо за {sum}!";
 		}));
 
+		// ---------- Сверхсобытия (30): от 5500, чередуются ☠ 5500, ★ 5750, ☠ 6000 … ★ 12750 ----------
+		// ☠ очень плохие (15)
+		t.put(5500, extreme(bad("Дракон", "дракон прилетел! {message}", "&5ДРАКОН",
+				"minecraft:entity.ender_dragon.growl",
+				"summon minecraft:ender_dragon ~ ~30 ~40")));
+		t.put(6000, extreme(bad("Гигант", "ГИГАНТСКИЙ ЗОМБИ! {message}", "&4ГИГАНТ",
+				"minecraft:entity.zombie.ambient",
+				"summon minecraft:zombie ~4 ~ ~4 {CustomName:\"Гигант {user}\",CustomNameVisible:1b,Health:200f,PersistenceRequired:1b,"
+						+ "attributes:[{id:\"minecraft:max_health\",base:200},{id:\"minecraft:scale\",base:4},{id:\"minecraft:attack_damage\",base:12}]}")));
+		t.put(6500, extreme(bad("Армия нежити", "армия нежити выходит из земли! {message}", "&2АРМИЯ НЕЖИТИ",
+				"minecraft:entity.husk.ambient",
+				"summon minecraft:zombie ~3 ~ ~",
+				"summon minecraft:zombie ~-3 ~ ~",
+				"summon minecraft:husk ~ ~ ~3",
+				"summon minecraft:husk ~ ~ ~-3",
+				"delay 20",
+				"summon minecraft:zombie ~2 ~ ~2",
+				"summon minecraft:husk ~-2 ~ ~-2",
+				"summon minecraft:drowned ~4 ~ ~-4")));
+		t.put(7000, extreme(bad("Ледяной плен", "тебя заковали в лёд! {message}", "&bЛЕДЯНОЙ ПЛЕН",
+				"minecraft:block.glass.break",
+				"effect give @s minecraft:slowness 200 4 true",
+				"effect give @s minecraft:mining_fatigue 200 2 true",
+				"effect give @s minecraft:weakness 200 1 true")));
+		t.put(7500, extreme(bad("Гроза-катаклизм", "катаклизм! {message}", "&eГРОЗА-КАТАКЛИЗМ",
+				"minecraft:entity.lightning_bolt.thunder",
+				"weather thunder 12000",
+				"summon minecraft:lightning_bolt ~ ~ ~",
+				"delay 8",
+				"summon minecraft:lightning_bolt ~4 ~ ~4",
+				"delay 8",
+				"summon minecraft:lightning_bolt ~-4 ~ ~-4",
+				"delay 8",
+				"summon minecraft:lightning_bolt ~4 ~ ~-4")));
+		t.put(8000, extreme(bad("Криперный ад", "криперы заряжены! {message}", "&2КРИПЕРНЫЙ АД",
+				"minecraft:entity.creeper.primed",
+				"summon minecraft:creeper ~3 ~ ~ {powered:1b}",
+				"summon minecraft:creeper ~-3 ~ ~ {powered:1b}",
+				"summon minecraft:creeper ~ ~ ~3 {powered:1b}")));
+		t.put(8500, extreme(bad("Паучий король", "паучий король пришёл за тобой! {message}", "&8ПАУЧИЙ КОРОЛЬ",
+				"minecraft:entity.spider.ambient",
+				"summon minecraft:spider ~ ~ ~4 {CustomName:\"Паучий король {user}\",CustomNameVisible:1b,Health:100f,PersistenceRequired:1b,"
+						+ "attributes:[{id:\"minecraft:max_health\",base:100},{id:\"minecraft:scale\",base:3}]}",
+				"summon minecraft:cave_spider ~-4 ~ ~",
+				"summon minecraft:cave_spider ~4 ~ ~-4",
+				"summon minecraft:cave_spider ~-4 ~ ~-4")));
+		t.put(9000, extreme(bad("Рыцари Нижнего мира", "рыцари Нижнего мира на охоте! {message}", "&6РЫЦАРИ НИЖНЕГО МИРА",
+				"minecraft:entity.piglin.angry",
+				"summon minecraft:piglin_brute ~4 ~ ~",
+				"summon minecraft:piglin_brute ~-4 ~ ~",
+				"summon minecraft:zoglin ~ ~ ~5")));
+		t.put(9500, extreme(bad("Взрывная бочка", "бочка с динамитом! {message}", "&cВЗРЫВНАЯ БОЧКА",
+				"minecraft:entity.generic.explode",
+				"summon minecraft:tnt ~2 ~ ~2 {fuse:40}",
+				"summon minecraft:tnt ~-2 ~ ~-2 {fuse:40}")));
+		t.put(10000, extreme(bad("Проклятие", "проклятие Иссушителя! {message}", "&5ПРОКЛЯТИЕ",
+				"minecraft:entity.wither.ambient",
+				"effect give @s minecraft:wither 15 2 true",
+				"effect give @s minecraft:poison 20 2 true")));
+		t.put(10500, extreme(bad("Головокружение", "мир кружится! {message}", "&dГОЛОВОКРУЖЕНИЕ",
+				"minecraft:entity.enderman.scream",
+				"effect give @s minecraft:nausea 120 4 true",
+				"effect give @s minecraft:levitation 3 0 true")));
+		t.put(11000, extreme(bad("Пламя ада", "пламя Нижнего мира! {message}", "&cПЛАМЯ АДА",
+				"minecraft:entity.blaze.ambient",
+				"summon minecraft:blaze ~3 ~1 ~3",
+				"summon minecraft:blaze ~-3 ~1 ~-3",
+				"summon minecraft:blaze ~3 ~1 ~-3",
+				"summon minecraft:blaze ~-3 ~1 ~3")));
+		t.put(11500, extreme(bad("Ярость големов", "железные големы взбесились! {message}", "&fЯРОСТЬ ГОЛЕМОВ",
+				"minecraft:entity.iron_golem.hurt",
+				"summon minecraft:iron_golem ~3 ~ ~ {PlayerCreated:0b}",
+				"summon minecraft:iron_golem ~-3 ~ ~ {PlayerCreated:0b}")));
+		t.put(12000, extreme(bad("Бездна", "ты провалился во тьму! {message}", "&8БЕЗДНА",
+				"minecraft:entity.warden.heartbeat",
+				"effect give @s minecraft:darkness 120 0 true",
+				"effect give @s minecraft:blindness 120 0 true",
+				"effect give @s minecraft:nausea 60 0 true")));
+		t.put(12500, extreme(bad("Конец света", "КОНЕЦ СВЕТА! {message}", "&4КОНЕЦ СВЕТА",
+				"minecraft:entity.wither.spawn",
+				"time set midnight",
+				"weather thunder 12000",
+				"effect give @s minecraft:darkness 120 0 true",
+				"summon minecraft:warden ~5 ~ ~5")));
+		// ★ очень хорошие (15)
+		t.put(5750, extreme(good("Ангел-хранитель", "ангел-хранитель рядом! {message}", "&fАНГЕЛ-ХРАНИТЕЛЬ",
+				"minecraft:block.beacon.activate",
+				"effect give @s minecraft:resistance 300 3 true",
+				"effect give @s minecraft:regeneration 300 2 true",
+				"effect give @s minecraft:absorption 600 4 true")));
+		t.put(6250, extreme(good("Золотой век", "золотой век наступил! {message}", "&eЗОЛОТОЙ ВЕК",
+				"minecraft:block.note_block.pling",
+				"time set day",
+				"weather clear 12000",
+				"effect give @s minecraft:regeneration 600 2 true")));
+		t.put(6750, extreme(good("Фейерверк-шоу", "фейерверк-шоу в твою честь! {message}", "&bФЕЙЕРВЕРК-ШОУ",
+				"minecraft:entity.firework_rocket.twinkle",
+				firework("~3 ~3 ~3", "16711680,16776960"),
+				"delay 8",
+				firework("~-3 ~3 ~3", "65535,16777215"),
+				"delay 8",
+				firework("~3 ~3 ~-3", "16711935,65280"),
+				"delay 8",
+				firework("~-3 ~3 ~-3", "16766720,16777215"),
+				"delay 8",
+				firework("~ ~4 ~", "16711680,65535"))));
+		t.put(7250, extreme(good("Нетеритовый клад", "нетеритовый клад! {message}", "&8НЕТЕРИТОВЫЙ КЛАД",
+				"minecraft:item.armor.equip_netherite",
+				"give @s minecraft:netherite_block 2",
+				"give @s minecraft:diamond_block 4",
+				"give @s minecraft:emerald_block 8")));
+		t.put(7750, extreme(good("Небесный страж", "небесные стражи к твоим услугам! {message}", "&bНЕБЕСНЫЙ СТРАЖ",
+				"minecraft:block.amethyst_block.chime",
+				"summon minecraft:allay ~2 ~1 ~2 {CustomName:\"Страж {user}\",CustomNameVisible:1b}",
+				"summon minecraft:allay ~-2 ~1 ~-2 {CustomName:\"Страж {user}\",CustomNameVisible:1b}",
+				"summon minecraft:allay ~2 ~1 ~-2 {CustomName:\"Страж {user}\",CustomNameVisible:1b}",
+				"summon minecraft:allay ~-2 ~1 ~2 {CustomName:\"Страж {user}\",CustomNameVisible:1b}")));
+		t.put(8250, extreme(good("Пир богов", "пир богов! {message}", "&6ПИР БОГОВ",
+				"minecraft:entity.player.burp",
+				"give @s minecraft:cooked_beef 64",
+				"give @s minecraft:golden_carrot 32",
+				"give @s minecraft:enchanted_golden_apple 2",
+				"effect give @s minecraft:saturation 1 4 true")));
+		t.put(8750, extreme(good("Берсерк", "режим берсерка! {message}", "&cБЕРСЕРК",
+				"minecraft:entity.player.levelup",
+				"effect give @s minecraft:strength 600 3 true",
+				"effect give @s minecraft:speed 600 2 true",
+				"effect give @s minecraft:haste 600 2 true",
+				"effect give @s minecraft:resistance 600 1 true")));
+		t.put(9250, extreme(good("Небесный лук", "лук, который не знает промаха! {message}", "&eНЕБЕСНЫЙ ЛУК",
+				"minecraft:entity.arrow.shoot",
+				"give @s minecraft:bow[minecraft:enchantments={\"minecraft:infinity\":1,\"minecraft:power\":5,\"minecraft:unbreaking\":3,\"minecraft:mending\":1},"
+						+ "minecraft:custom_name={text:\"Лук {user}\",color:\"gold\",italic:false}] 1",
+				"give @s minecraft:arrow 64")));
+		t.put(9750, extreme(good("Звёздный дождь", "звёздный дождь! {message}", "&fЗВЁЗДНЫЙ ДОЖДЬ",
+				"minecraft:entity.experience_orb.pickup",
+				"give @s minecraft:nether_star 2",
+				"xp add @s 50 levels",
+				"particle minecraft:end_rod ~ ~3 ~ 2 2 2 0.2 200")));
+		t.put(10250, extreme(good("Невидимка", "ты стал невидимкой! {message}", "&7НЕВИДИМКА",
+				"minecraft:entity.enderman.teleport",
+				"effect give @s minecraft:invisibility 300 0 true",
+				"effect give @s minecraft:speed 300 1 true",
+				"effect give @s minecraft:night_vision 600 0 true")));
+		t.put(10750, extreme(good("Яйцо дракона", "яйцо дракона в твоих руках! {message}", "&5ЯЙЦО ДРАКОНА",
+				"minecraft:block.end_portal_frame.fill",
+				"give @s minecraft:dragon_egg 1",
+				"give @s minecraft:end_crystal 4",
+				"give @s minecraft:elytra[minecraft:enchantments={\"minecraft:unbreaking\":3,\"minecraft:mending\":1}] 1")));
+		t.put(11250, extreme(good("Удача", "удача на твоей стороне! {message}", "&aУДАЧА",
+				"minecraft:entity.villager.celebrate",
+				"effect give @s minecraft:luck 600 2 true",
+				"effect give @s minecraft:hero_of_the_village 1200 1 true")));
+		t.put(11750, extreme(good("Волчий страж", "волчий страж рядом! {message}", "&7ВОЛЧИЙ СТРАЖ",
+				"minecraft:entity.wolf.howl",
+				"summon minecraft:wolf ~2 ~ ~2 {Tame:1b,CustomName:\"Волк {user}\",CustomNameVisible:1b,Health:40f,"
+						+ "attributes:[{id:\"minecraft:max_health\",base:40}]}")));
+		t.put(12250, extreme(good("Пророчество", "пророчество сбылось! {message}", "&dПРОРОЧЕСТВО",
+				"minecraft:entity.evoker.prepare_summon",
+				"effect give @s minecraft:glowing 300 0 true",
+				"effect give @s minecraft:fire_resistance 600 0 true",
+				"xp add @s 100 levels")));
+		t.put(12750, extreme(good("Вечность", "ВЕЧНОСТЬ! {message}", "&dВЕЧНОСТЬ",
+				"minecraft:ui.toast.challenge_complete",
+				"give @s minecraft:totem_of_undying 3",
+				"effect give @s minecraft:resistance 900 3 true",
+				"effect give @s minecraft:absorption 900 4 true",
+				"xp add @s 200 levels")).with(a -> {
+			a.toast = "&dВЕЧНОСТЬ";
+			a.toastText = "&f{user} · {sum}";
+		}));
+
 		Map<String, Action> result = new LinkedHashMap<>();
 		for (Map.Entry<Integer, Action> entry : t.entrySet()) {
 			result.put(String.valueOf(entry.getKey()), entry.getValue());
@@ -363,10 +538,16 @@ public final class DonationPresets {
 	public static final String REWARD_GOOD = "Подарок";
 	/** Стоимость наград по умолчанию в баллах канала. */
 	public static final int REWARD_COST = 250;
+	/** Дорогие награды за баллы: «Катастрофа» — случайное сверх-☠ событие, «Чудо» — случайное сверх-★ событие. */
+	public static final String REWARD_MAX_BAD = "Катастрофа";
+	public static final String REWARD_MAX_GOOD = "Чудо";
+	/** Стоимость дорогих наград в баллах канала. */
+	public static final int REWARD_MAX_COST = 500;
 
 	/**
-	 * Две награды за баллы канала: «Пакость» — случайное ☠ событие, «Подарок» — случайное ★ событие
-	 * (равновероятно из всех записей ценника соответствующего знака).
+	 * Награды за баллы канала: «Пакость» — случайное ☠ событие, «Подарок» — случайное ★ событие
+	 * (равновероятно из всех обычных записей ценника соответствующего знака), а также дорогие
+	 * «Катастрофа» и «Чудо» — случайное сверхсобытие (15 ☠ / 15 ★ из ценника, от 5500 ₽) за 500 баллов.
 	 */
 	public static Map<String, Action> poolRewards() {
 		Map<String, Action> rewards = new LinkedHashMap<>();
@@ -390,11 +571,32 @@ public final class DonationPresets {
 			a.color = "#1E8449";
 			a.reply = "{user}, выпало: ★ {picked}!";
 		}));
+		rewards.put(REWARD_MAX_BAD, new Action(
+				"&c☠☠ &d{user} &7активировал(а) «{reward}» — выпало: &4{picked}&7! {picked_text}",
+				"", "&f{user} · {picked}"
+		).with(a -> {
+			a.pool = "xbad";
+			a.cost = REWARD_MAX_COST;
+			a.prompt = "Катастрофа стримеру — одно из 15 самых страшных событий";
+			a.color = "#4B0000";
+			a.reply = "{user}, выпала КАТАСТРОФА: ☠ {picked}!";
+		}));
+		rewards.put(REWARD_MAX_GOOD, new Action(
+				"&a★★ &d{user} &7активировал(а) «{reward}» — выпало: &e{picked}&7! {picked_text}",
+				"", "&f{user} · {picked}"
+		).with(a -> {
+			a.pool = "xgood";
+			a.cost = REWARD_MAX_COST;
+			a.prompt = "Чудо для стримера — одно из 15 самых щедрых событий";
+			a.color = "#B8860B";
+			a.reply = "{user}, выпало ЧУДО: ★ {picked}!";
+		}));
 		return rewards;
 	}
 
 	/**
-	 * Записи ценника, из которых выбирает награда с данным pool: "bad" — ☠, "good" — ★, "any" — и те и другие.
+	 * Записи ценника, из которых выбирает награда с данным pool: "bad" — обычные ☠, "good" — обычные ★,
+	 * "any" — и те и другие, "xbad" / "xgood" — сверхсобытия (☠ / ★ с флагом extreme).
 	 * Выключенные и пустые записи пропускаются.
 	 */
 	public static List<Action> poolCandidates(Map<String, Action> tiers, String pool) {
@@ -409,10 +611,13 @@ public final class DonationPresets {
 			}
 			boolean bad = isBad(action);
 			boolean good = isGood(action);
+			boolean extreme = action.extreme;
 			boolean ok = switch (which) {
-				case "bad" -> bad;
-				case "good" -> good;
-				case "any" -> bad || good;
+				case "bad" -> bad && !extreme;
+				case "good" -> good && !extreme;
+				case "any" -> (bad || good) && !extreme;
+				case "xbad" -> bad && extreme;
+				case "xgood" -> good && extreme;
 				default -> false;
 			};
 			if (ok) {
@@ -486,7 +691,8 @@ public final class DonationPresets {
 	/**
 	 * Ценник одной строкой: «30 Тыква · 50 Голод · …».
 	 *
-	 * @param which 'b' — только плохие, 'g' — только хорошие, иначе все (с префиксами)
+	 * @param which 'b' — только обычные плохие, 'g' — только обычные хорошие, 'x' — только сверхсобытия,
+	 *               иначе все (с префиксами)
 	 */
 	public static String priceLine(Map<String, Action> tiers, char which) {
 		StringBuilder sb = new StringBuilder();
@@ -495,7 +701,8 @@ public final class DonationPresets {
 			if (!action.enabled) {
 				continue;
 			}
-			if (which == 'b' && !isBad(action) || which == 'g' && !isGood(action)) {
+			if (which == 'b' && (!isBad(action) || action.extreme) || which == 'g' && (!isGood(action) || action.extreme)
+					|| which == 'x' && !action.extreme) {
 				continue;
 			}
 			String name = which == 'b' || which == 'g' ? plainName(action) : (action.name == null ? "" : action.name.trim());
@@ -510,19 +717,23 @@ public final class DonationPresets {
 		return sb.toString();
 	}
 
-	/** Плейсхолдеры {donation_prices_bad} {donation_prices_good} {donation_prices} для ответов в чат. */
+	/**
+	 * Плейсхолдеры {donation_prices_bad} {donation_prices_good} {donation_prices} для ответов в чат
+	 * и {donation_prices_max} — сверхсобытия (от 5500). Обычные списки без сверхсобытий, чтобы уложиться в лимит чата Twitch.
+	 */
 	public static Map<String, String> placeholders(Map<String, Action> tiers) {
 		Map<String, String> vars = new LinkedHashMap<>();
 		vars.put("donation_prices_bad", priceLine(tiers, 'b'));
 		vars.put("donation_prices_good", priceLine(tiers, 'g'));
 		vars.put("donation_prices", priceLine(tiers, 'a'));
+		vars.put("donation_prices_max", priceLine(tiers, 'x'));
 		return vars;
 	}
 
 	/**
 	 * Строки для чата игры: «☠ 30 ₽ — Тыква» … (отключённые помечены).
 	 *
-	 * @param which 'b' — плохие, 'g' — хорошие, 'o' — прочие (без префикса), иначе все
+	 * @param which 'b' — обычные плохие, 'g' — обычные хорошие, 'x' — сверхсобытия, 'o' — прочие (без префикса), иначе все
 	 */
 	public static List<String> priceLines(Map<String, Action> tiers, String symbol, char which) {
 		List<String> lines = new ArrayList<>();
@@ -530,7 +741,8 @@ public final class DonationPresets {
 			Action action = entry.getValue();
 			boolean bad = isBad(action);
 			boolean good = isGood(action);
-			if (which == 'b' && !bad || which == 'g' && !good || which == 'o' && (bad || good)) {
+			if (which == 'b' && (!bad || action.extreme) || which == 'g' && (!good || action.extreme)
+					|| which == 'x' && !action.extreme || which == 'o' && (bad || good)) {
 				continue;
 			}
 			String color = isBad(action) ? "§c" : isGood(action) ? "§a" : "§7";
@@ -570,6 +782,19 @@ public final class DonationPresets {
 		Action action = new Action(message, title, subtitle, commands);
 		action.name = name;
 		action.sound = sound == null ? "" : sound;
+		return action;
+	}
+
+	/**
+	 * Сверхсобытия из ценника версии 1.13 (от 6000 до 20500 ₽). При миграции v12 → v13 удаляются только записи,
+	 * которые пользователь не менял (ключ и название совпадают), — остальные остаются как есть.
+	 */
+	public static Map<String, String> legacyV12Extremes() {
+		return Map.ofEntries(Map.entry("6000", BAD + "Дракон"), Map.entry("7000", BAD + "Гигант"), Map.entry("8000", BAD + "Армия нежити"), Map.entry("9000", BAD + "Ледяной плен"), Map.entry("10000", BAD + "Гроза-катаклизм"), Map.entry("11000", BAD + "Криперный ад"), Map.entry("12000", BAD + "Паучий король"), Map.entry("13000", BAD + "Рыцари Нижнего мира"), Map.entry("14000", BAD + "Взрывная бочка"), Map.entry("15000", BAD + "Проклятие"), Map.entry("16000", BAD + "Головокружение"), Map.entry("17000", BAD + "Пламя ада"), Map.entry("18000", BAD + "Ярость големов"), Map.entry("19000", BAD + "Бездна"), Map.entry("20000", BAD + "Конец света"), Map.entry("6500", GOOD + "Ангел-хранитель"), Map.entry("7500", GOOD + "Золотой век"), Map.entry("8500", GOOD + "Фейерверк-шоу"), Map.entry("9500", GOOD + "Нетеритовый клад"), Map.entry("10500", GOOD + "Небесный страж"), Map.entry("11500", GOOD + "Пир богов"), Map.entry("12500", GOOD + "Берсерк"), Map.entry("13500", GOOD + "Небесный лук"), Map.entry("14500", GOOD + "Звёздный дождь"), Map.entry("15500", GOOD + "Невидимка"), Map.entry("16500", GOOD + "Яйцо дракона"), Map.entry("17500", GOOD + "Удача"), Map.entry("18500", GOOD + "Волчий страж"), Map.entry("19500", GOOD + "Пророчество"), Map.entry("20500", GOOD + "Вечность"));
+	}
+
+	private static Action extreme(Action action) {
+		action.extreme = true;
 		return action;
 	}
 

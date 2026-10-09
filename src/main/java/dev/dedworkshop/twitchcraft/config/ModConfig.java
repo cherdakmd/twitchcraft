@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 11;
+	public int configVersion = 13;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -853,6 +853,12 @@ public class ModConfig {
 		 */
 		public String pool = "";
 
+		/**
+		 * Сверхсобытие ценника донатов (от 5500): не попадает в обычные награды «Пакость» / «Подарок»,
+		 * а выбирается наградами «Катастрофа» (pool = xbad) и «Чудо» (pool = xgood).
+		 */
+		public boolean extreme = false;
+
 		public Action() {
 		}
 
@@ -1258,6 +1264,7 @@ public class ModConfig {
 		}
 		boolean changed = false;
 		ModConfig defaults = createDefault();
+		int fromVersion = present.contains("configVersion") ? configVersion : 11; // версия файла до миграций (ниже configVersion перезаписывается)
 		boolean fromV2 = !present.contains("configVersion") || configVersion < 3;
 		// v2 → v3: флаги enabled переехали в modules
 		if (!present.contains("modules")) {
@@ -1426,6 +1433,52 @@ public class ModConfig {
 		}
 		if (!present.contains("configVersion") || configVersion < 11) {
 			configVersion = 11;
+			changed = true;
+		}
+		// v12 → v13: сверхсобытия переехали с 6000–20500 ₽ на 5500–12750 ₽ (шаг 250), «Катастрофа» и «Чудо» — 500 баллов.
+		// Непринятые пользователем записи старого ценника и цену 1000 заменяем; изменённые записи и свои награды не трогаем.
+		if (fromVersion == 12) {
+			if (donationTiers != null) {
+				for (Map.Entry<String, String> old : DonationPresets.legacyV12Extremes().entrySet()) {
+					Action current = donationTiers.get(old.getKey());
+					if (current != null && current.extreme && old.getValue().equals(current.name)) {
+						donationTiers.remove(old.getKey());
+						changed = true;
+					}
+				}
+			}
+			if (rewards != null) {
+				for (String name : List.of(DonationPresets.REWARD_MAX_BAD, DonationPresets.REWARD_MAX_GOOD)) {
+					Action reward = rewards.get(name);
+					if (reward != null && reward.cost == 1000) {
+						reward.cost = DonationPresets.REWARD_MAX_COST;
+						changed = true;
+					}
+				}
+			}
+		}
+		// v11 → v13: сверхсобытия ценника донатов и награды «Катастрофа» / «Чудо».
+		// Добавляем только то, чего в конфиге ещё нет: свои записи и награды пользователя не трогаем.
+		if (fromVersion == 11 || fromVersion == 12) {
+			if (donationTiers != null) {
+				for (Map.Entry<String, Action> entry : defaults.donationTiers.entrySet()) {
+					if (entry.getValue().extreme && !donationTiers.containsKey(entry.getKey())) {
+						donationTiers.put(entry.getKey(), entry.getValue());
+						changed = true;
+					}
+				}
+			}
+			if (fromVersion == 11 && rewards != null) {
+				for (String name : List.of(DonationPresets.REWARD_MAX_BAD, DonationPresets.REWARD_MAX_GOOD)) {
+					if (findReward(name) == null && defaults.rewards.get(name) != null) {
+						rewards.put(name, defaults.rewards.get(name));
+						changed = true;
+					}
+				}
+			}
+		}
+		if (!present.contains("configVersion") || configVersion < 13) {
+			configVersion = 13;
 			changed = true;
 		}
 		return changed;
@@ -1640,7 +1693,7 @@ public class ModConfig {
 		if (action.prompt == null) action.prompt = "";
 		if (action.color == null) action.color = "";
 		action.pool = action.pool == null ? "" : action.pool.trim().toLowerCase(Locale.ROOT);
-		if (!action.pool.isEmpty() && !action.pool.equals("bad") && !action.pool.equals("good") && !action.pool.equals("any")) {
+		if (!action.pool.isEmpty() && !List.of("bad", "good", "any", "xbad", "xgood").contains(action.pool)) {
 			action.pool = "";
 		}
 		action.chance = Math.max(0, Math.min(100, action.chance));
