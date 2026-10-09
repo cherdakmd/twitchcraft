@@ -850,6 +850,7 @@ public final class TwitchCommands {
 		List<String> bad = DonationPresets.priceLines(config.donationTiers, symbol, 'b');
 		List<String> good = DonationPresets.priceLines(config.donationTiers, symbol, 'g');
 		List<String> other = DonationPresets.priceLines(config.donationTiers, symbol, 'o');
+		List<String> extreme = DonationPresets.priceLines(config.donationTiers, symbol, 'x');
 		Chat.info("§6§l=== Ценник донатов ===§r §7(общая таблица, " + config.donationTiers.size() + " записей; срабатывает самый большой порог ≤ суммы)");
 		if (!bad.isEmpty()) {
 			Chat.info("§c☠ Плохие (" + bad.size() + "):");
@@ -863,6 +864,10 @@ public final class TwitchCommands {
 			Chat.info("§7• Прочие (" + other.size() + "):");
 			other.forEach(Chat::info);
 		}
+		if (!extreme.isEmpty()) {
+			Chat.info("§6✦ Сверхсобытия (" + extreme.size() + ") — награды «Катастрофа» и «Чудо»:");
+			extreme.forEach(Chat::info);
+		}
 		if (!config.donationAlertsTiers.isEmpty() || !config.donatePayTiers.isEmpty()) {
 			Chat.info("§7У сервиса со своей таблицей (DonationAlerts: " + config.donationAlertsTiers.size() + ", DonatePay: "
 					+ config.donatePayTiers.size() + ") действует она, а не общая.");
@@ -872,12 +877,12 @@ public final class TwitchCommands {
 		return 1;
 	}
 
-	/** Заменить общую таблицу донатов готовым ценником (25 ☠ + 25 ★ + «Спасибо»). */
+	/** Заменить общую таблицу донатов готовым ценником (25 ☠ + 25 ★ + 30 сверхсобытий + «Спасибо»). */
 	private static int donationPreset(TwitchCraftClient mod, boolean confirmed) {
 		ModConfig config = mod.config();
 		if (!confirmed) {
 			Chat.warn("Это заменит общую таблицу эффектов за донаты (" + config.donationTiers.size() + " записей) готовым ценником: "
-					+ "25 плохих, 25 хороших и «Спасибо» за мелочь. Текущая таблица будет сохранена в копии конфига.");
+					+ "25 плохих, 25 хороших, 30 сверхсобытий (от 6000) и «Спасибо» за мелочь. Текущая таблица будет сохранена в копии конфига.");
 			Chat.send(Component.literal("§7Подтвердить (клик): ").append(Component.literal("§e/twitch donations preset confirm").withStyle(style -> style
 					.withClickEvent(new ClickEvent.SuggestCommand("/twitch donations preset confirm"))
 					.withHoverEvent(new HoverEvent.ShowText(Component.literal("Вставить команду в чат"))))));

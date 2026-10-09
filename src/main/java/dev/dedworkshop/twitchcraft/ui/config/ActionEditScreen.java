@@ -24,7 +24,7 @@ import java.util.function.Function;
  */
 class ActionEditScreen extends BaseScreen {
 	private static final List<String> PERMISSIONS = List.of("everyone", "subscriber", "vip", "moderator", "broadcaster");
-	private static final List<String> POOLS = List.of("", "bad", "good", "any");
+	private static final List<String> POOLS = List.of("", "bad", "good", "any", "xbad", "xgood");
 
 	private final ActionKind kind;
 	private final String originalKey;
@@ -83,7 +83,7 @@ class ActionEditScreen extends BaseScreen {
 			String pool = draft.pool == null ? "" : draft.pool.trim().toLowerCase(java.util.Locale.ROOT);
 			row(main, r++, "Случайное из ценника", Widgets.cycle("Пул", POOLS.contains(pool) ? pool : "", POOLS, ActionEditScreen::poolName,
 					v -> draft.pool = v, Widgets.FIELD,
-					"Награда выбирает случайную запись ценника донатов (☠ / ★ / любую) и выполняет её после своего действия. "
+					"Награда выбирает случайную запись ценника донатов (☠ / ★ / любую; ☠☠ / ★★ — сверхсобытия от 6000) и выполняет её после своего действия. "
 							+ "В сообщении доступны {picked} и {picked_text}. «Нет» — обычная награда"));
 		}
 		content.addChild(main);
@@ -240,6 +240,8 @@ class ActionEditScreen extends BaseScreen {
 			case "bad" -> "☠ Пакость";
 			case "good" -> "★ Подарок";
 			case "any" -> "☠/★ Любое";
+			case "xbad" -> "☠☠ Катастрофа";
+			case "xgood" -> "★★ Чудо";
 			default -> "Нет";
 		};
 	}

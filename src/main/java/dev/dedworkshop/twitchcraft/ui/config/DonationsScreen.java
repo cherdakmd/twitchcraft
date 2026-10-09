@@ -77,14 +77,14 @@ class DonationsScreen extends BaseScreen {
 		effectRows.addChild(Widgets.button("Только DonatePay (" + mod.config().donatePayTiers.size() + ")", Widgets.HALF,
 				() -> open(new ActionListScreen(mod, this, ActionKind.TIER, "Эффекты DonatePay", mod.config().donatePayTiers, TwitchEvent.Type.DONATION)),
 				"Если таблица не пуста — DonatePay использует её вместо общей"));
-		effectRows.addChild(Widgets.button("Ценник по умолчанию (51)", Widgets.HALF, () -> confirm("Загрузить ценник по умолчанию?",
-				"Общая таблица (" + mod.config().donationTiers.size() + " записей) будет заменена: 25 плохих ☠, 25 хороших ★ и «Спасибо». "
+		effectRows.addChild(Widgets.button("Ценник по умолчанию (81)", Widgets.HALF, () -> confirm("Загрузить ценник по умолчанию?",
+				"Общая таблица (" + mod.config().donationTiers.size() + " записей) будет заменена: 25 плохих ☠, 25 хороших ★, 30 сверхсобытий (от 6000) и «Спасибо». "
 						+ "Копия старого конфига сохранится рядом с ним.", () -> {
 					dev.dedworkshop.twitchcraft.util.SafeFiles.backupCopy(ModConfig.path(), ".bak-" + java.time.LocalDate.now());
 					mod.config().donationTiers = dev.dedworkshop.twitchcraft.config.DonationPresets.defaults();
 					mod.configEdited();
 					Chat.success("Ценник донатов загружен: " + mod.config().donationTiers.size() + " записей.");
-				}), "Вернуть готовый ценник: 25 ☠ + 25 ★. Посмотреть: /twitch donations prices"));
+				}), "Вернуть готовый ценник: 25 ☠ + 25 ★ + 30 сверхсобытий. Посмотреть: /twitch donations prices"));
 		effectRows.addChild(Widgets.button("Показать ценник в чате", Widgets.HALF, () -> {
 			if (!inWorld()) {
 				Chat.warn("Чат игры доступен только в мире.");

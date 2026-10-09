@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 11;
+	public int configVersion = 12;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -853,6 +853,12 @@ public class ModConfig {
 		 */
 		public String pool = "";
 
+		/**
+		 * Сверхсобытие ценника донатов (от 6000): не попадает в обычные награды «Пакость» / «Подарок»,
+		 * а выбирается наградами «Катастрофа» (pool = xbad) и «Чудо» (pool = xgood).
+		 */
+		public boolean extreme = false;
+
 		public Action() {
 		}
 
@@ -1258,6 +1264,7 @@ public class ModConfig {
 		}
 		boolean changed = false;
 		ModConfig defaults = createDefault();
+		int fromVersion = present.contains("configVersion") ? configVersion : 11; // версия файла до миграций (ниже configVersion перезаписывается)
 		boolean fromV2 = !present.contains("configVersion") || configVersion < 3;
 		// v2 → v3: флаги enabled переехали в modules
 		if (!present.contains("modules")) {
@@ -1426,6 +1433,30 @@ public class ModConfig {
 		}
 		if (!present.contains("configVersion") || configVersion < 11) {
 			configVersion = 11;
+			changed = true;
+		}
+		// v11 → v12: сверхсобытия ценника донатов (☠ 6000 … ★ 20500) и награды «Катастрофа» / «Чудо».
+		// Добавляем только то, чего в конфиге ещё нет: свои записи и награды пользователя не трогаем.
+		if (fromVersion == 11) {
+			if (donationTiers != null) {
+				for (Map.Entry<String, Action> entry : defaults.donationTiers.entrySet()) {
+					if (entry.getValue().extreme && !donationTiers.containsKey(entry.getKey())) {
+						donationTiers.put(entry.getKey(), entry.getValue());
+						changed = true;
+					}
+				}
+			}
+			if (rewards != null) {
+				for (String name : List.of(DonationPresets.REWARD_MAX_BAD, DonationPresets.REWARD_MAX_GOOD)) {
+					if (findReward(name) == null && defaults.rewards.get(name) != null) {
+						rewards.put(name, defaults.rewards.get(name));
+						changed = true;
+					}
+				}
+			}
+		}
+		if (!present.contains("configVersion") || configVersion < 12) {
+			configVersion = 12;
 			changed = true;
 		}
 		return changed;
@@ -1640,7 +1671,7 @@ public class ModConfig {
 		if (action.prompt == null) action.prompt = "";
 		if (action.color == null) action.color = "";
 		action.pool = action.pool == null ? "" : action.pool.trim().toLowerCase(Locale.ROOT);
-		if (!action.pool.isEmpty() && !action.pool.equals("bad") && !action.pool.equals("good") && !action.pool.equals("any")) {
+		if (!action.pool.isEmpty() && !List.of("bad", "good", "any", "xbad", "xgood").contains(action.pool)) {
 			action.pool = "";
 		}
 		action.chance = Math.max(0, Math.min(100, action.chance));
