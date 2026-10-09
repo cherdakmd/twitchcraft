@@ -1401,7 +1401,7 @@ public class LogicTest {
             ModConfig m7 = ModConfig.fromJson(m7json);
             boolean m7up = m7.upgradeFrom(m7json);
             check("v6 → v11: untouched example rewards replaced by Пакость/Подарок/*; vk section added; version 11", m7up && m7.configVersion == 13
-                    && m7.rewards.size() == 3 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*")
+                    && m7.rewards.size() == 5 && m7.rewards.containsKey("Пакость") && m7.rewards.containsKey("Подарок") && m7.rewards.containsKey("*") && m7.rewards.containsKey("Катастрофа")
                     && m7.vk != null && m7.vk.callbackPort > 0);
             ModConfig m7own = ModConfig.createDefault();
             m7own.configVersion = 6;
@@ -1411,7 +1411,7 @@ public class LogicTest {
             String m7ownJson = m7own.toJson();
             ModConfig m7kept = ModConfig.fromJson(m7ownJson);
             boolean m7keptUp = m7kept.upgradeFrom(m7ownJson);
-            check("v6 → v7: user's rewards kept, only missing «Подарок» added (case-insensitive match for «пакость»)", m7keptUp && m7kept.rewards.size() == 3
+            check("v6 → v7: user's rewards kept, missing defaults added («Подарок», «Катастрофа», «Чудо»; case-insensitive match for «пакость»)", m7keptUp && m7kept.rewards.size() == 5
                     && m7kept.rewards.get("Моя").commands.get(0).equals("say my") && m7kept.rewards.get("пакость").commands.get(0).equals("say custom bad")
                     && m7kept.rewards.containsKey("Подарок") && !m7kept.rewards.containsKey("Пакость"));
             String m7stable = m7kept.toJson();
