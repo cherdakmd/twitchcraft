@@ -41,7 +41,7 @@ public class ModConfig {
 	// ---------- Основные настройки ----------
 
 	/** Версия формата файла (служебное, не менять). */
-	public int configVersion = 12;
+	public int configVersion = 13;
 
 	/** Client ID твоего приложения с https://dev.twitch.tv/console/apps */
 	public String clientId = "";
@@ -854,7 +854,7 @@ public class ModConfig {
 		public String pool = "";
 
 		/**
-		 * Сверхсобытие ценника донатов (от 6000): не попадает в обычные награды «Пакость» / «Подарок»,
+		 * Сверхсобытие ценника донатов (от 5500): не попадает в обычные награды «Пакость» / «Подарок»,
 		 * а выбирается наградами «Катастрофа» (pool = xbad) и «Чудо» (pool = xgood).
 		 */
 		public boolean extreme = false;
@@ -1435,9 +1435,31 @@ public class ModConfig {
 			configVersion = 11;
 			changed = true;
 		}
-		// v11 → v12: сверхсобытия ценника донатов (☠ 6000 … ★ 20500) и награды «Катастрофа» / «Чудо».
+		// v12 → v13: сверхсобытия переехали с 6000–20500 ₽ на 5500–12750 ₽ (шаг 250), «Катастрофа» и «Чудо» — 500 баллов.
+		// Непринятые пользователем записи старого ценника и цену 1000 заменяем; изменённые записи и свои награды не трогаем.
+		if (fromVersion == 12) {
+			if (donationTiers != null) {
+				for (Map.Entry<String, String> old : DonationPresets.legacyV12Extremes().entrySet()) {
+					Action current = donationTiers.get(old.getKey());
+					if (current != null && current.extreme && old.getValue().equals(current.name)) {
+						donationTiers.remove(old.getKey());
+						changed = true;
+					}
+				}
+			}
+			if (rewards != null) {
+				for (String name : List.of(DonationPresets.REWARD_MAX_BAD, DonationPresets.REWARD_MAX_GOOD)) {
+					Action reward = rewards.get(name);
+					if (reward != null && reward.cost == 1000) {
+						reward.cost = DonationPresets.REWARD_MAX_COST;
+						changed = true;
+					}
+				}
+			}
+		}
+		// v11 → v13: сверхсобытия ценника донатов и награды «Катастрофа» / «Чудо».
 		// Добавляем только то, чего в конфиге ещё нет: свои записи и награды пользователя не трогаем.
-		if (fromVersion == 11) {
+		if (fromVersion == 11 || fromVersion == 12) {
 			if (donationTiers != null) {
 				for (Map.Entry<String, Action> entry : defaults.donationTiers.entrySet()) {
 					if (entry.getValue().extreme && !donationTiers.containsKey(entry.getKey())) {
@@ -1446,7 +1468,7 @@ public class ModConfig {
 					}
 				}
 			}
-			if (rewards != null) {
+			if (fromVersion == 11 && rewards != null) {
 				for (String name : List.of(DonationPresets.REWARD_MAX_BAD, DonationPresets.REWARD_MAX_GOOD)) {
 					if (findReward(name) == null && defaults.rewards.get(name) != null) {
 						rewards.put(name, defaults.rewards.get(name));
@@ -1455,8 +1477,8 @@ public class ModConfig {
 				}
 			}
 		}
-		if (!present.contains("configVersion") || configVersion < 12) {
-			configVersion = 12;
+		if (!present.contains("configVersion") || configVersion < 13) {
+			configVersion = 13;
 			changed = true;
 		}
 		return changed;

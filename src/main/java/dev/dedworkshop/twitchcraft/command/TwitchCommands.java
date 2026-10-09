@@ -882,7 +882,7 @@ public final class TwitchCommands {
 		ModConfig config = mod.config();
 		if (!confirmed) {
 			Chat.warn("Это заменит общую таблицу эффектов за донаты (" + config.donationTiers.size() + " записей) готовым ценником: "
-					+ "25 плохих, 25 хороших, 30 сверхсобытий (от 6000) и «Спасибо» за мелочь. Текущая таблица будет сохранена в копии конфига.");
+					+ "25 плохих, 25 хороших, 30 сверхсобытий (от 5500) и «Спасибо» за мелочь. Текущая таблица будет сохранена в копии конфига.");
 			Chat.send(Component.literal("§7Подтвердить (клик): ").append(Component.literal("§e/twitch donations preset confirm").withStyle(style -> style
 					.withClickEvent(new ClickEvent.SuggestCommand("/twitch donations preset confirm"))
 					.withHoverEvent(new HoverEvent.ShowText(Component.literal("Вставить команду в чат"))))));

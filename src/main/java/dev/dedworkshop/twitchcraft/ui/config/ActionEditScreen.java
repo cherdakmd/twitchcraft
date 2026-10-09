@@ -83,7 +83,7 @@ class ActionEditScreen extends BaseScreen {
 			String pool = draft.pool == null ? "" : draft.pool.trim().toLowerCase(java.util.Locale.ROOT);
 			row(main, r++, "Случайное из ценника", Widgets.cycle("Пул", POOLS.contains(pool) ? pool : "", POOLS, ActionEditScreen::poolName,
 					v -> draft.pool = v, Widgets.FIELD,
-					"Награда выбирает случайную запись ценника донатов (☠ / ★ / любую; ☠☠ / ★★ — сверхсобытия от 6000) и выполняет её после своего действия. "
+					"Награда выбирает случайную запись ценника донатов (☠ / ★ / любую; ☠☠ / ★★ — сверхсобытия от 5500) и выполняет её после своего действия. "
 							+ "В сообщении доступны {picked} и {picked_text}. «Нет» — обычная награда"));
 		}
 		content.addChild(main);
